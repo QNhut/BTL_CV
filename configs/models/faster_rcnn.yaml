@@ -1,0 +1,40 @@
+name: faster_rcnn_r50_fpn_v2
+type: faster_rcnn
+family: detection
+
+model:
+  pretrained: true            # backbone/detector COCO weights (cần mạng lần đầu)
+  variant: v2                 # v1 | v2
+  min_size: 800
+  max_size: 1333
+  box_detections_per_img: 500
+  box_score_thresh: 0.05
+  box_nms_thresh: 0.5
+  rpn_pre_nms_top_n_test: 2000
+  rpn_post_nms_top_n_test: 1000
+  device: null
+
+inference:
+  min_score: 0.05
+  count_threshold: 0.5
+  nms_iou: 0.5
+  tile:
+    enabled: false
+    size: 640
+    overlap: 0.2
+
+train:
+  epochs: 40
+  batch_size: 4
+  num_workers: 2
+  optimizer: sgd              # sgd | adamw
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 0.0005
+  scheduler: cosine           # cosine | step | none
+  warmup_epochs: 1
+  grad_clip: 10.0
+  amp: true
+  val_every: 1
+  patience: 10                # early stopping theo val MAE (0 = tắt)
+  seed: 42

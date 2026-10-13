@@ -1,0 +1,39 @@
+# Cấu hình dataset dùng chung cho mọi model.
+# Mọi model đọc CÙNG một bộ split để so sánh công bằng.
+
+name: minneapple
+
+# Định dạng annotation gốc: instance_masks | yolo_txt | coco
+format: instance_masks
+
+# Đường dẫn dữ liệu gốc (sửa theo máy / Kaggle).
+# Kaggle ví dụ: /kaggle/input/minneapple
+paths:
+  images_dir: data/raw/minneapple/detection/train/images
+  # instance_masks: mỗi quả là một giá trị nguyên khác nhau trong ảnh mask (0 = nền)
+  masks_dir: data/raw/minneapple/detection/train/masks
+  mask_suffix: ""            # ví dụ "_mask" nếu ảnh abc.png có mask abc_mask.png
+  # yolo_txt:
+  labels_dir: null
+  # coco:
+  coco_json: null
+
+# Lọc nhiễu khi suy ra box từ mask
+min_instance_area: 20        # pixel
+
+# Chia dữ liệu (theo ảnh, stratified theo số quả)
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+  seed: 42
+  stratify_by_count: true
+
+# Thư mục kết quả tiền xử lý (records.json, splits.json, yolo/)
+processed_dir: data/processed
+
+# Xuất dataset định dạng Ultralytics cho YOLO
+yolo_export:
+  symlink: false             # true = tạo symlink thay vì copy (tiết kiệm đĩa)
+
+classes: [fruit]

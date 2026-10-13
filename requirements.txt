@@ -1,0 +1,19 @@
+# Cốt lõi
+numpy>=1.24
+opencv-python-headless>=4.8
+PyYAML>=6.0
+matplotlib>=3.7
+scipy>=1.10
+pandas>=2.0
+tqdm>=4.65
+
+# Deep learning (Kaggle/Colab thường đã có torch + torchvision)
+torch>=2.1
+torchvision>=0.16
+ultralytics>=8.3        # YOLOv8 / YOLO11
+
+# Demo
+gradio>=4.0
+
+# Test
+pytest>=7.4

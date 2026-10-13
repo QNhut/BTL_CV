@@ -1,0 +1,37 @@
+name: yolo11s
+type: yolo
+family: detection
+
+model:
+  weights: yolo11s.pt
+  imgsz: 1024
+  device: null
+
+inference:
+  min_score: 0.05
+  count_threshold: 0.25
+  nms_iou: 0.5
+  max_det: 1000
+  tile:
+    enabled: false
+    size: 640
+    overlap: 0.2
+
+train_args:
+  epochs: 100
+  batch: 8
+  patience: 30
+  optimizer: auto
+  lr0: 0.01
+  cos_lr: true
+  workers: 2
+  seed: 42
+  mosaic: 1.0
+  close_mosaic: 10
+  fliplr: 0.5
+  flipud: 0.0
+  hsv_h: 0.015
+  hsv_s: 0.5
+  hsv_v: 0.3
+  scale: 0.5
+  translate: 0.1

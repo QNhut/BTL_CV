@@ -1,0 +1,39 @@
+name: csrnet
+type: csrnet
+family: density               # hồi quy density map, đếm = tổng density
+
+model:
+  pretrained: true            # VGG16 ImageNet cho frontend
+  density_scale: 100.0        # nhân density GT lên khi train để loss ổn định
+  max_side: 1024              # resize cạnh dài khi suy luận (bội số của 8)
+  device: null
+
+# Sinh density map GT từ tâm box
+density:
+  downsample: 8               # stride đầu ra của CSRNet
+  sigma_scale: 0.25           # sigma = sigma_scale * min(w, h) của box (trong không gian density)
+  min_sigma: 1.0
+  fixed_sigma: null           # đặt số để dùng sigma cố định
+
+inference:
+  min_score: 0.0
+  count_threshold: null       # không dùng
+  tile:
+    enabled: false
+
+train:
+  epochs: 100
+  batch_size: 4
+  num_workers: 2
+  crop_size: 512              # random crop khi train (bội số của 8)
+  optimizer: adamw
+  lr: 0.00005
+  weight_decay: 0.0001
+  scheduler: cosine
+  warmup_epochs: 2
+  grad_clip: 5.0
+  amp: true
+  count_loss_weight: 0.1      # L1 trên tổng density (hỗ trợ MSE pixel)
+  val_every: 1
+  patience: 20
+  seed: 42

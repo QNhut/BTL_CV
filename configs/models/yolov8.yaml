@@ -1,0 +1,40 @@
+name: yolov8s
+type: yolo                    # yolo | faster_rcnn | mask_rcnn | csrnet
+family: detection
+
+model:
+  weights: yolov8s.pt         # tự tải về qua Ultralytics; có thể đổi n/s/m/l/x
+  imgsz: 1024
+  device: null                # null = tự chọn
+
+# Tham số suy luận khi đánh giá / demo
+inference:
+  min_score: 0.05             # giữ mọi box >= ngưỡng này (dùng tính mAP)
+  count_threshold: 0.25       # ngưỡng đếm mặc định (có thể tune trên tập val)
+  nms_iou: 0.5
+  max_det: 1000
+  tile:                       # SAHI-style slicing (bật khi quả nhỏ)
+    enabled: false
+    size: 640
+    overlap: 0.2
+
+# Truyền thẳng vào ultralytics `model.train(...)`
+train_args:
+  epochs: 100
+  batch: 8
+  patience: 30
+  optimizer: auto
+  lr0: 0.01
+  cos_lr: true
+  workers: 2
+  seed: 42
+  # augmentation của Ultralytics
+  mosaic: 1.0
+  close_mosaic: 10
+  fliplr: 0.5
+  flipud: 0.0
+  hsv_h: 0.015
+  hsv_s: 0.5
+  hsv_v: 0.3
+  scale: 0.5
+  translate: 0.1

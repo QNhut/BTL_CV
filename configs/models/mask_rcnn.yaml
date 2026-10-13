@@ -1,0 +1,39 @@
+name: mask_rcnn_r50_fpn_v2
+type: mask_rcnn
+family: segmentation          # tách từng quả bằng mask, đếm số instance
+
+model:
+  pretrained: true
+  variant: v2
+  min_size: 800
+  max_size: 1333
+  box_detections_per_img: 300   # mask full-res cho mỗi box rất tốn RAM, nên giới hạn thấp hơn Faster R-CNN
+  box_score_thresh: 0.05
+  box_nms_thresh: 0.5
+  mask_threshold: 0.5
+  device: null
+
+inference:
+  min_score: 0.05
+  count_threshold: 0.5
+  nms_iou: 0.5
+  tile:
+    enabled: false
+    size: 640
+    overlap: 0.2
+
+train:
+  epochs: 40
+  batch_size: 2
+  num_workers: 2
+  optimizer: sgd
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 0.0005
+  scheduler: cosine
+  warmup_epochs: 1
+  grad_clip: 10.0
+  amp: true
+  val_every: 1
+  patience: 10
+  seed: 42

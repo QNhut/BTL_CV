@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+data/raw/
+data/processed/
+runs/
+outputs/
+*.pt
+*.pth
+*.onnx

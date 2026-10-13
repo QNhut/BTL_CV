@@ -1,0 +1,26 @@
+# Augmentation do project tự cài (numpy + OpenCV), dùng cho Faster R-CNN,
+# Mask R-CNN và CSRNet. YOLO dùng augmentation riêng của Ultralytics
+# (khai báo trong configs/models/yolo*.yaml, mục train_args).
+
+train:
+  hflip: 0.5
+  vflip: 0.0
+  color_jitter:
+    p: 0.8
+    brightness: 0.25         # +/- tỉ lệ
+    contrast: 0.25
+    saturation: 0.25
+    hue: 10                  # độ lệch trên thang HSV của OpenCV (0-180)
+  random_scale_crop:
+    p: 0.7
+    scale: [0.5, 1.0]        # diện tích vùng crop so với ảnh gốc
+    ratio: [0.75, 1.33]
+    min_visibility: 0.35     # giữ box nếu còn >= 35% diện tích sau khi crop
+  gaussian_blur:
+    p: 0.1
+    ksize: [3, 5]
+  # Kích thước cạnh dài nhất sau augmentation (0 = giữ nguyên)
+  max_side: 1024
+
+val:
+  max_side: 1024
