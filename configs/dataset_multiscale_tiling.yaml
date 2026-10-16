@@ -1,0 +1,23 @@
+name: minneapple_multiscale_tiling
+description: Quả nhỏ & Cắt mảng chi tiết cao (Multi-scale & High-Res Tiling) - Bảo
+  tồn 100% độ phân giải cho các quả nhỏ ở xa, tương thích hoàn hảo với cơ chế SAHI/tiling
+  inference.
+format: instance_masks
+paths:
+  images_dir: data/augmented/multiscale_tiling/images
+  masks_dir: data/augmented/multiscale_tiling/masks
+  mask_suffix: ''
+  labels_dir: null
+  coco_json: null
+min_instance_area: 15
+split:
+  train: 0.7
+  val: 0.15
+  test: 0.15
+  seed: 42
+  stratify_by_count: true
+processed_dir: data/augmented/multiscale_tiling
+yolo_export:
+  symlink: false
+classes:
+- fruit

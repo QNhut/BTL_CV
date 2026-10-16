@@ -98,15 +98,37 @@ def masks_to_boxes(
     instance_mask: np.ndarray, min_area: int = 1
 ) -> tuple[np.ndarray, np.ndarray]:
     """Suy box xyxy từ instance mask. Trả về (boxes[N,4], ids[N])."""
-    ids = np.unique(instance_mask)
-    ids = ids[ids > 0]
-    boxes, kept = [], []
-    for i in ids:
-        ys, xs = np.nonzero(instance_mask == i)
-        if len(xs) < min_area:
-            continue
-        boxes.append([xs.min(), ys.min(), xs.max() + 1, ys.max() + 1])
-        kept.append(i)
+    try:
+        import scipy.ndimage
+
+        slices = scipy.ndimage.find_objects(instance_mask)
+        boxes, kept = [], []
+        for i, sl in enumerate(slices):
+            if sl is None:
+                continue
+            uid = i + 1
+            sub = instance_mask[sl] == uid
+            if int(np.count_nonzero(sub)) < min_area:
+                continue
+            ys, xs = np.nonzero(sub)
+            boxes.append([
+                sl[1].start + xs.min(),
+                sl[0].start + ys.min(),
+                sl[1].start + xs.max() + 1,
+                sl[0].start + ys.max() + 1,
+            ])
+            kept.append(uid)
+    except Exception:
+        ids = np.unique(instance_mask)
+        ids = ids[ids > 0]
+        boxes, kept = [], []
+        for i in ids:
+            ys, xs = np.nonzero(instance_mask == i)
+            if len(xs) < min_area:
+                continue
+            boxes.append([xs.min(), ys.min(), xs.max() + 1, ys.max() + 1])
+            kept.append(i)
+
     if not boxes:
         return np.zeros((0, 4), np.float32), np.zeros((0,), np.int64)
     return np.asarray(boxes, np.float32), np.asarray(kept, np.int64)

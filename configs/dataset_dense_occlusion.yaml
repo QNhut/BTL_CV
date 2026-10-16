@@ -1,0 +1,23 @@
+name: minneapple_dense_occlusion
+description: Chùm quả dày đặc & Che khuất cực độ (Dense & Occlusion) - Tối ưu hóa
+  khả năng tách quả chồng lấn cho YOLO/Faster R-CNN và thử thách đếm vùng cực đông
+  cho CSRNet.
+format: instance_masks
+paths:
+  images_dir: data/augmented/dense_occlusion/images
+  masks_dir: data/augmented/dense_occlusion/masks
+  mask_suffix: ''
+  labels_dir: null
+  coco_json: null
+min_instance_area: 15
+split:
+  train: 0.7
+  val: 0.15
+  test: 0.15
+  seed: 42
+  stratify_by_count: true
+processed_dir: data/augmented/dense_occlusion
+yolo_export:
+  symlink: false
+classes:
+- fruit

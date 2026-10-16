@@ -1,0 +1,23 @@
+name: minneapple_lighting_weather
+description: Độ bền vững Ánh sáng & Môi trường nông trại (Lighting & Farm Weather)
+  - Khắc phục hiện tượng bóng râm tán lá che khuất và lóa sáng nắng gắt (sun flare),
+  giúp nhận diện chính xác quả ở mọi thời điểm trong ngày.
+format: instance_masks
+paths:
+  images_dir: data/augmented/lighting_weather/images
+  masks_dir: data/augmented/lighting_weather/masks
+  mask_suffix: ''
+  labels_dir: null
+  coco_json: null
+min_instance_area: 15
+split:
+  train: 0.7
+  val: 0.15
+  test: 0.15
+  seed: 42
+  stratify_by_count: true
+processed_dir: data/augmented/lighting_weather
+yolo_export:
+  symlink: false
+classes:
+- fruit

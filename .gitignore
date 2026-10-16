@@ -9,3 +9,6 @@ outputs/
 *.pt
 *.pth
 *.onnx
+
+data/augmented/
+*.zip

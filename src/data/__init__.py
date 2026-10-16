@@ -13,12 +13,32 @@ from .annotations import (
     masks_to_boxes,
     save_records,
 )
+from .advanced_augmentation import (
+    AdaptiveCLAHE,
+    CanopyShadow,
+    ClusterCopyPaste,
+    FarmWeatherSim,
+    FoliageOcclusion,
+    HighResFruitTileCrop,
+    MicroFruitDownscaleSim,
+    SunFlare,
+    create_mosaic4,
+)
 from .augmentation import Compose, Sample, build_augmenter
 from .density import boxes_to_density, boxes_to_points
 from .splits import load_split_records, load_splits, make_splits, save_splits, select_records
 from .yolo_export import boxes_to_yolo_lines, export_yolo_dataset
 
 __all__ = [
+    "AdaptiveCLAHE",
+    "CanopyShadow",
+    "ClusterCopyPaste",
+    "FarmWeatherSim",
+    "FoliageOcclusion",
+    "HighResFruitTileCrop",
+    "MicroFruitDownscaleSim",
+    "SunFlare",
+    "create_mosaic4",
     "ImageRecord",
     "Sample",
     "Compose",

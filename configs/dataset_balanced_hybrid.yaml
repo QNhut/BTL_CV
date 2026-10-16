@@ -1,0 +1,23 @@
+name: minneapple_balanced_hybrid
+description: Cân bằng toàn diện (Balanced Hybrid Benchmark) - Bộ dữ liệu tổng hòa
+  các biến đổi tự nhiên, độ ổn định cao nhất để huấn luyện benchmark công bằng cho
+  cả 4 mô hình.
+format: instance_masks
+paths:
+  images_dir: data/augmented/balanced_hybrid/images
+  masks_dir: data/augmented/balanced_hybrid/masks
+  mask_suffix: ''
+  labels_dir: null
+  coco_json: null
+min_instance_area: 15
+split:
+  train: 0.7
+  val: 0.15
+  test: 0.15
+  seed: 42
+  stratify_by_count: true
+processed_dir: data/augmented/balanced_hybrid
+yolo_export:
+  symlink: false
+classes:
+- fruit

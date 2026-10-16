@@ -9,9 +9,9 @@ format: instance_masks
 # Đường dẫn dữ liệu gốc (sửa theo máy / Kaggle).
 # Kaggle ví dụ: /kaggle/input/minneapple
 paths:
-  images_dir: data/raw/minneapple/detection/train/images
+  images_dir: D:/CV/BTL/Data/detection/detection/train/images
   # instance_masks: mỗi quả là một giá trị nguyên khác nhau trong ảnh mask (0 = nền)
-  masks_dir: data/raw/minneapple/detection/train/masks
+  masks_dir: D:/CV/BTL/Data/detection/detection/train/masks
   mask_suffix: ""            # ví dụ "_mask" nếu ảnh abc.png có mask abc_mask.png
   # yolo_txt:
   labels_dir: null
