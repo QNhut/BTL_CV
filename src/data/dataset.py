@@ -102,12 +102,12 @@ def detection_collate(batch):
 def density_collate(batch):
     """Pad ảnh / density về cùng kích thước lớn nhất trong batch (pad 0)."""
     imgs, dens, counts = zip(*batch)
-    ds = imgs[0].shape[-1] // max(1, dens[0].shape[-1])
     H = max(i.shape[-2] for i in imgs)
     W = max(i.shape[-1] for i in imgs)
-    H, W = -(-H // ds) * ds, -(-W // ds) * ds
+    dh = max(d.shape[-2] for d in dens)
+    dw = max(d.shape[-1] for d in dens)
     out_i = torch.zeros(len(imgs), 3, H, W)
-    out_d = torch.zeros(len(imgs), 1, H // ds, W // ds)
+    out_d = torch.zeros(len(imgs), 1, dh, dw)
     for k, (i, d) in enumerate(zip(imgs, dens)):
         out_i[k, :, : i.shape[-2], : i.shape[-1]] = i
         out_d[k, :, : d.shape[-2], : d.shape[-1]] = d

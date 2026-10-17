@@ -154,7 +154,7 @@ class RandomScaleCrop(Transform):
             r = math.exp(rng.uniform(math.log(self.ratio[0]), math.log(self.ratio[1])))
             cw = int(round(min(w, math.sqrt(area * r))))
             ch = int(round(min(h, math.sqrt(area / r))))
-            cw, ch = max(cw, 8), max(ch, 8)
+            cw, ch = min(w, max(cw, 8)), min(h, max(ch, 8))
             x0 = int(rng.integers(0, w - cw + 1))
             y0 = int(rng.integers(0, h - ch + 1))
             out = crop_sample(s, x0, y0, x0 + cw, y0 + ch, self.min_visibility)
@@ -245,12 +245,18 @@ class Compose:
         self.transforms = list(transforms)
         self.seed = seed
         self._rng: Optional[np.random.Generator] = None
+        self._worker_seed = None
 
     @property
     def rng(self) -> np.random.Generator:
+        import sys
+        torch = sys.modules.get("torch")
+        worker = torch.utils.data.get_worker_info() if torch is not None else None
+        worker_seed = worker.seed if worker is not None else self.seed
         # tạo lười để mỗi worker của DataLoader có luồng ngẫu nhiên riêng (khi seed=None)
-        if self._rng is None:
-            self._rng = np.random.default_rng(self.seed)
+        if self._rng is None or self._worker_seed != worker_seed:
+            self._rng = np.random.default_rng(worker_seed)
+            self._worker_seed = worker_seed
         return self._rng
 
     def __call__(self, s: Sample) -> Sample:

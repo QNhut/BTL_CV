@@ -94,3 +94,12 @@ def test_record_from_dict_fills_missing_ids():
         {"image_id": "x", "image_path": "x.png", "width": 10, "height": 10, "boxes": [[0, 0, 5, 5], [1, 1, 4, 4]]}
     )
     assert r.instance_ids.tolist() == [1, 2]
+
+
+def test_single_channel_mask_with_explicit_channel_axis(monkeypatch):
+    mask = np.zeros((10, 12, 1), np.uint16)
+    mask[2:5, 3:7, 0] = 256
+    monkeypatch.setattr(cv2, "imread", lambda *args: mask)
+    result = read_instance_mask("unused.png")
+    assert result.shape == (10, 12)
+    assert result[2, 3] == 256

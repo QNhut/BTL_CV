@@ -86,3 +86,20 @@ def test_build_dataset_factory(records):
     assert isinstance(build_dataset("density", records), FruitDensityDataset)
     with pytest.raises(ValueError):
         build_dataset("nope", records)
+
+
+def test_density_collate_odd_image_dimensions():
+    import numpy as np
+    from src.data import ImageRecord
+    from src.data.dataset import image_to_tensor
+    from src.data.density import boxes_to_density
+
+    batch = []
+    for h, w in ((65, 67), (71, 73)):
+        image = image_to_tensor(np.zeros((h, w, 3), np.uint8))
+        density = torch.from_numpy(boxes_to_density(np.array([[1, 1, 9, 9]]), (h, w)))[None]
+        batch.append((image, density, torch.tensor(1.0)))
+    images, density, counts = density_collate(batch)
+    assert images.shape == (2, 3, 71, 73)
+    assert density.shape == (2, 1, 9, 10)
+    assert torch.allclose(density.sum((1, 2, 3)), counts)

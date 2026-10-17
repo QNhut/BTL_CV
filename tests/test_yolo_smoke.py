@@ -19,11 +19,12 @@ CFG = {
 }
 
 
-@pytest.fixture(scope="module")
-def trained(records, tmp_path_factory):
+@pytest.fixture(scope="module", params=["yolov8n.yaml", "yolo11n.yaml"])
+def trained(records, tmp_path_factory, request):
     root = tmp_path_factory.mktemp("yolo")
     data_yaml = export_yolo_dataset({"train": records[:8], "val": records[8:12]}, root / "data")
-    model = build_model(CFG)
+    cfg = {**CFG, "model": {**CFG["model"], "weights": request.param}}
+    model = build_model(cfg)
     best = model.fit(data_yaml, root / "run")
     return model, best, root
 
@@ -58,3 +59,8 @@ def test_load_weights_roundtrip(trained, records):
     img = load_image(records[0].image_path)
     a, b = model.predict_image(img), other.predict_image(img)
     assert len(a.boxes) == len(b.boxes)
+
+
+def test_resume_completed_run_reuses_best_weights(trained):
+    model, best, root = trained
+    assert model.fit(root / 'data/data.yaml', root / 'run', resume=True) == best

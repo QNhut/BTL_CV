@@ -11,7 +11,7 @@ from _common import ROOT, run_dir, setup_logging
 
 from src.data import export_yolo_dataset, load_split_records
 from src.models import build_model, load_model_config
-from src.utils import deep_merge, load_yaml, save_yaml
+from src.utils import deep_merge, load_yaml, save_yaml, seed_everything
 from src.visualization import plot_training_curves
 
 log = logging.getLogger("fruitcount")
@@ -50,6 +50,8 @@ def main() -> None:
     cfg = deep_merge(cfg, over)
     save_yaml(cfg, out_dir / "config.yaml")  # lưu lại cấu hình đã dùng để tái lập kết quả
 
+    training_cfg = (cfg.get("train_args") if cfg["type"] == "yolo" else cfg.get("train")) or {}
+    seed_everything(int(training_cfg.get("seed", 42)))
     model = build_model(cfg, device=args.device)
 
     if cfg["type"] == "yolo":

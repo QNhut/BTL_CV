@@ -40,6 +40,8 @@ class Trainer:
         self.model = model
         self.train_records = list(train_records)
         self.val_records = list(val_records)
+        if not self.train_records or not self.val_records:
+            raise ValueError("Training requires non-empty train and validation splits. Check dataset paths and split ratios.")
         self.aug_cfg = aug_cfg
         self.out_dir = Path(out_dir)
         self.out_dir.mkdir(parents=True, exist_ok=True)
@@ -71,7 +73,7 @@ class Trainer:
             if crop % 8:
                 raise ValueError("crop_size của CSRNet phải là bội số của 8")
             pad = 8
-        aug = build_augmenter(self.aug_cfg, train=True, crop_size=crop, pad_multiple=pad)
+        aug = build_augmenter(self.aug_cfg, train=True, seed=int(self.cfg.get("seed", 42)), crop_size=crop, pad_multiple=pad)
         ds = build_dataset(kind, self.train_records, aug, self.model.density_cfg)
         workers = int(self.cfg.get("num_workers", 2))
         return DataLoader(
@@ -160,7 +162,9 @@ class Trainer:
         epochs = int(self.cfg.get("epochs", 1))
         val_every = max(1, int(self.cfg.get("val_every", 1)))
         patience = int(self.cfg.get("patience", 0) or 0)
-        if resume and self.ckpt.has_last():
+        if resume:
+            if not self.ckpt.has_last():
+                raise FileNotFoundError(f"No checkpoint to resume: {self.ckpt.last_path}")
             self._resume()
 
         for epoch in range(self.start_epoch, epochs):

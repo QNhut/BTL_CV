@@ -68,7 +68,10 @@ class ImageRecord:
 # Tiện ích
 # --------------------------------------------------------------------------
 def list_images(images_dir: str | Path) -> list[Path]:
-    return sorted(p for p in Path(images_dir).iterdir() if p.suffix.lower() in IMAGE_EXTS)
+    directory = Path(images_dir)
+    if not directory.is_dir():
+        raise FileNotFoundError(f"Image directory does not exist: {directory}. Check dataset.yaml paths or attach the dataset.")
+    return sorted(p for p in directory.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTS)
 
 
 def read_image_size(path: str | Path) -> tuple[int, int]:
@@ -88,7 +91,9 @@ def read_instance_mask(path: str | Path) -> np.ndarray:
     m = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
     if m is None:
         raise FileNotFoundError(f"Không đọc được mask: {path}")
-    if m.ndim == 3:
+    if m.ndim == 3 and m.shape[2] == 1:
+        m = m[..., 0]
+    elif m.ndim == 3:
         b, g, r = m[..., 0].astype(np.int64), m[..., 1].astype(np.int64), m[..., 2].astype(np.int64)
         m = r * 65536 + g * 256 + b
     return m.astype(np.int32)

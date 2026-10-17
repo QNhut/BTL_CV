@@ -137,3 +137,30 @@ Test cần torch / ultralytics tự bỏ qua nếu chưa cài.
   nên ghi rõ trong phần phương pháp.
 - Cố định `seed`, giữ nguyên split và lưu `runs/<model>/config.yaml` để tái lập kết quả.
 # BTL_CV
+
+
+## Pipeline Kaggle lấy source từ GitHub
+
+Mở `notebooks/kaggle_pipeline_git.ipynb`, bật Internet và GPU. Cell đầu lấy code từ
+`https://github.com/QNhut/BTL_CV.git`, nhánh `TLuan`; cần commit và push thay đổi trước.
+Nếu checkout đã tồn tại, notebook dùng lại code hiện có. Dùng phiên mới hoặc đổi `WORK`
+để lấy code mới; notebook không tự pull đè lên cấu hình dữ liệu đang dùng.
+
+Thêm MinneApple bằng Add Input. Cell dữ liệu tự tìm một cặp `images/` và `masks/`,
+ưu tiên tập train. Nếu tìm thấy nhiều cặp hoặc cấu trúc khác, đặt rõ `IMAGES_DIR`
+và `MASKS_DIR`. Test hiện được chia từ dữ liệu có nhãn, không đọc thư mục test ngoài riêng.
+Các bước chuẩn bị, train, đánh giá và so sánh dừng ngay khi lệnh con lỗi.
+
+`last.pt` được lưu sau mỗi epoch. Khi đã có checkpoint, notebook tự resume;
+YOLO đã train xong sẽ dùng lại `best.pt`. Cần lưu output và khôi phục thư mục
+`runs` vào `/kaggle/working/runs` khi chuyển phiên; code không tự sao lưu ra ngoài phiên.
+
+Kiểm thử nhanh dùng dữ liệu tổng hợp, không đo độ chính xác trên MinneApple:
+
+```bash
+python -m pytest -q
+```
+
+Bộ test có train thử YOLOv8/YOLO11 nano, Faster R-CNN, Mask R-CNN và CSRNet trên CPU,
+kiểm tra checkpoint/resume CSRNet và chạy lại YOLO đã hoàn tất. Trên Windows,
+test symlink được bỏ qua nếu tài khoản không có quyền tạo symlink.

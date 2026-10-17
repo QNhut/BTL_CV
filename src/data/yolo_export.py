@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from ..utils.config import save_yaml
-from .annotations import ImageRecord
+from .annotations import IMAGE_EXTS, ImageRecord
 
 
 def boxes_to_yolo_lines(boxes: np.ndarray, width: int, height: int, cls: int = 0) -> list[str]:
@@ -44,6 +44,16 @@ def export_yolo_dataset(
         lab_dir = out_dir / "labels" / split
         img_dir.mkdir(parents=True, exist_ok=True)
         lab_dir.mkdir(parents=True, exist_ok=True)
+        # Re-exporting a changed split must not retain images from the old split.
+        expected_images = {f"{r.image_id}{Path(r.image_path).suffix.lower()}" for r in recs}
+        expected_labels = {f"{r.image_id}.txt" for r in recs}
+        for folder, expected, extensions in (
+            (img_dir, expected_images, IMAGE_EXTS),
+            (lab_dir, expected_labels, {".txt"}),
+        ):
+            for old in folder.iterdir():
+                if (old.is_file() or old.is_symlink()) and old.suffix.lower() in extensions and old.name not in expected:
+                    old.unlink()
         for r in recs:
             src = Path(r.image_path).resolve()
             dst = img_dir / f"{r.image_id}{src.suffix.lower()}"

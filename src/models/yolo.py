@@ -40,7 +40,19 @@ class YOLOCounter(BaseCounter):
         if resume:
             if not last.exists():
                 raise FileNotFoundError(f"Không có checkpoint để resume: {last}")
-            YOLO(str(last)).train(resume=True)
+            import torch
+
+            checkpoint = torch.load(last, map_location="cpu", weights_only=False)
+            target_epochs = int((overrides or {}).get("epochs", (self.cfg.get("train_args") or {}).get("epochs", 100)))
+            epoch = int(checkpoint.get("epoch", -1))
+            best = out_dir / "weights" / "best.pt"
+            if (epoch == -1 or epoch + 1 >= target_epochs) and best.exists():
+                self.load(str(best))
+                return best
+            if epoch == -1:
+                raise ValueError("This YOLO checkpoint has no optimizer state; use a training checkpoint to resume.")
+            del checkpoint
+            YOLO(str(last)).train(resume=True, data=str(Path(data_yaml).resolve()), device=self.device, epochs=target_epochs)
         else:
             args = dict(self.cfg.get("train_args", {}) or {})
             args.update(overrides or {})
@@ -52,6 +64,7 @@ class YOLOCounter(BaseCounter):
                 exist_ok=True,
                 single_cls=True,
                 device=self.device,
+                save=True,
             )
             self.model.train(**args)
         best = out_dir / "weights" / "best.pt"
