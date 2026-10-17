@@ -1,0 +1,28 @@
+name: rf_detr_large_finetuned
+type: rf_detr
+family: detection
+mode: finetune
+protocol: finetuned
+model:
+  hub_id: Roboflow/rf-detr-large
+  revision: main
+  device: null
+inference:
+  min_score: 0.05
+  count_threshold: 0.5
+  nms_iou: 0.5
+  tile: {enabled: false, size: 640, overlap: 0.2}
+train:
+  epochs: 40
+  batch_size: 2
+  num_workers: 2
+  optimizer: adamw
+  lr: 0.00001
+  weight_decay: 0.0001
+  scheduler: cosine
+  warmup_epochs: 1
+  grad_clip: 1.0
+  amp: true
+  val_every: 1
+  patience: 10
+  seed: 42

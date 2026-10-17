@@ -25,7 +25,7 @@ def trained(records, tmp_path_factory, request):
     data_yaml = export_yolo_dataset({"train": records[:8], "val": records[8:12]}, root / "data")
     cfg = {**CFG, "model": {**CFG["model"], "weights": request.param}}
     model = build_model(cfg)
-    best = model.fit(data_yaml, root / "run")
+    best = model.fit(data_yaml, root / "run", val_records=records[8:12])
     return model, best, root
 
 
@@ -33,6 +33,11 @@ def test_fit_writes_weights(trained):
     _, best, root = trained
     assert (root / "run" / "weights" / "last.pt").exists()
     assert best.parent == root / "run" / "weights"
+    assert (root / 'run/training/loss_curves.png').exists()
+    assert (root / 'run/training/accuracy_curves.png').exists()
+    from src.utils import read_json
+    history = read_json(root / 'run/training/history.json')
+    assert 0 <= history[0]['val_acc_exact'] <= 1
 
 
 def test_predict_returns_count_result(trained, records):

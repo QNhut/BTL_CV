@@ -4,7 +4,7 @@
 """
 import argparse
 
-from _common import ROOT, default_weights
+from _common import ROOT, selected_weights
 
 from src.inference import CountingPredictor
 from src.visualization import render_result
@@ -22,7 +22,9 @@ def main() -> None:
     predictors: dict[str, CountingPredictor] = {}
     for cfg_path in args.models:
         p = CountingPredictor.from_config(cfg_path)
-        p.model.load(str(default_weights(args.runs, p.model.cfg)))
+        weights = selected_weights(args.runs, p.model.cfg)
+        if weights is not None:
+            p.model.load(str(weights))
         predictors[p.model.cfg["name"]] = p
 
     def run(image, model_name, threshold, tile):

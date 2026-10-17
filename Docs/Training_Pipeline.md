@@ -1,5 +1,9 @@
 # Huấn luyện model bằng pipeline Kaggle
 
+Ngoài năm model ban đầu, registry hỗ trợ thêm RT-DETRv2, RF-DETR, Grounding DINO,
+CountGD và VA-Count. Xem [Extra_Models.md](Extra_Models.md) để chọn chế độ,
+cài dependency và hiểu giới hạn của từng adapter nghiên cứu.
+
 Tài liệu mô tả code hiện tại trong [kaggle_pipeline_git.ipynb](../notebooks/kaggle_pipeline_git.ipynb). Các giá trị bên dưới là cấu hình trong repository; khi thay đổi notebook hoặc YAML, cấu hình thực tế có thể khác.
 
 ## 1. Luồng chạy
@@ -160,6 +164,24 @@ YOLO dùng trọng số `yolov8s.pt` hoặc `yolo11s.pt`, `optimizer=auto`, `lr0
 
 ## 7. Early stopping và chọn best model
 
+### Biểu đồ loss và Accuracy theo epoch
+
+Mỗi model xuất thêm `training/loss_curves.png` và `training/accuracy_curves.png`.
+Accuracy là tỷ lệ ảnh đếm đúng hoàn toàn, sai không quá 1 quả và không quá 3 quả,
+được đo trên validation; hình hiển thị phần trăm. Model detection chọn ngưỡng
+đếm tối ưu theo MAE trên validation tại mỗi epoch trước khi tính Accuracy.
+
+Trainer PyTorch ghi các giá trị `val_acc_exact`, `val_acc_within_1`,
+`val_acc_within_3` vào history. Với YOLO, callback chạy thêm một lượt suy luận
+validation sau mỗi epoch để có Accuracy đếm thực tế; việc này tăng thời gian
+train và dùng thêm bộ nhớ cho một bản sao model, tránh sửa trọng số đang train.
+Loss YOLO gồm các thành phần train và validation do Ultralytics cung cấp;
+loss PyTorch là loss train, chưa tính thêm loss validation.
+
+Biểu đồ được cập nhật sau mỗi epoch có lịch sử. Run cũ không ghi Accuracy
+theo epoch sẽ không thể tái tạo các điểm quá khứ chỉ từ `best.pt`/`last.pt`.
+Khi resume, các epoch cũ thiếu chỉ số được để trống, không điền số giả.
+
 | Model | Patience | Tiêu chí |
 |---|---:|---|
 | Faster R-CNN | 10 | Validation MAE không giảm |
@@ -247,6 +269,43 @@ Các hàng sắp theo MAE tăng dần; biến thể tiling có hàng riêng.
 Phần minh họa dùng tối đa 4 ảnh test, lấy mẫu với seed 0. CLI predict mặc định dùng ngưỡng trong config, chưa tự nạp ngưỡng đã tune từ báo cáo evaluate; số đếm minh họa có thể khác kết quả đánh giá.
 
 ## 10. Kiểm tra trước khi chạy dài
+
+### Bảng đánh giá khả năng triển khai
+
+`runs/comparison/deployment_test.csv` và `.md` tổng hợp riêng độ chính xác,
+tốc độ và dung lượng. `deployment_test.png` so sánh FPS, latency P95 và kích
+thước checkpoint. Notebook pipeline hiển thị bảng này ngay dưới bảng tổng hợp.
+
+| Thông số | Ý nghĩa |
+|---|---|
+| `fps` | Nghịch đảo latency trung bình khi xử lý tuần tự từng ảnh đã nạp vào RAM |
+| `latency_ms_mean/median/p95` | Thời gian suy luận trung bình, trung vị và phân vị 95% |
+| `latency_ms_std/min/max` | Độ dao động, thời gian nhỏ nhất và lớn nhất |
+| `model_load_s` | Thời gian tạo model và nạp checkpoint; có thể gồm tải pretrained lần đầu |
+| `dataset_inference_s` | Thời gian đọc ảnh và suy luận toàn bộ tập đánh giá; không gồm tune ngưỡng, tính metric hay benchmark riêng |
+| `dataset_images_per_s` | Số ảnh chia thời gian xử lý tập đánh giá, với batch trong `dataset_batch_size` |
+| `checkpoint_mb` | Kích thước file trọng số được đánh giá, có thể gồm optimizer/metadata tùy loại checkpoint |
+| `params_million` | Số tham số, triệu tham số |
+| `model_tensor_mb` | Tổng kích thước tensor tham số và buffer của mạng; không phải toàn bộ RAM/VRAM cần chạy |
+| `gpu_peak_allocated_mb` | Bộ nhớ tensor CUDA đỉnh của tiến trình trong benchmark; không phải tổng VRAM thiết bị |
+| `gpu_inference_extra_mb` | Phần tăng thêm so với baseline sau warmup |
+
+Các cột `_mb` dùng MiB (1024² byte). Đo CPU không có số liệu CUDA, hiển thị `—`.
+Hiện chưa đo RAM đỉnh của tiến trình hoặc bộ nhớ trên thiết bị đích như điện thoại.
+
+Benchmark mặc định warmup 5 lượt và đo 50 lượt, batch 1, luân phiên tối đa 10
+ảnh đầu tập đánh giá. Bao gồm tiền xử lý, model và hậu xử lý, không gồm đọc ảnh
+từ ổ đĩa. Metadata lưu thiết bị, tên phần cứng, phiên bản torch, số luồng CPU,
+dtype tham số và kích thước ảnh nguồn. `parameter_dtype` không đại diện cho mọi
+phép tính trung gian khi có mixed precision. Có thể đổi bằng `--speed-runs`
+và `--speed-warmup` khi gọi evaluate cùng `--speed`.
+
+Để chọn model thực tế, đặt giới hạn MAE/Accuracy, latency P95, dung lượng và bộ
+nhớ theo thiết bị đích rồi so sánh các model đạt giới hạn. Bảng vẫn sắp theo MAE,
+không tự kết luận model đứng đầu là tốt nhất cho mọi mục đích. Cần đo cùng tập
+ảnh, phần cứng, phần mềm, độ chính xác số và chế độ tiling; kết quả trên Kaggle
+không bảo đảm tốc độ tương đương trên thiết bị triển khai. Báo cáo cũ cần chạy
+lại evaluate với `--speed` để bổ sung những thông số trước đây chưa ghi.
 
 1. Push source lên nhánh `TLuan`, dùng checkout đúng bản cập nhật.
 2. Xác nhận CUDA khả dụng và đường dẫn ảnh/mask đúng.

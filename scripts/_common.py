@@ -21,3 +21,11 @@ def run_dir(out_root: str | Path, model_cfg: dict) -> Path:
 
 def default_weights(out_root: str | Path, model_cfg: dict) -> Path:
     return run_dir(out_root, model_cfg) / "weights" / "best.pt"
+
+
+def selected_weights(out_root, model_cfg, explicit=None):
+    if explicit:
+        return Path(explicit)
+    if model_cfg.get('mode') == 'pretrained':
+        return None  # The adapter loads its configured source checkpoint.
+    return default_weights(out_root, model_cfg)

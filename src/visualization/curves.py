@@ -41,7 +41,35 @@ def plot_training_curves(history: Sequence[dict], out_path: Optional[str | Path]
     if title:
         fig.suptitle(title)
     _save(fig, out_path)
+    if out_path:
+        plot_loss_accuracy(history, Path(out_path).parent, title)
     return fig
+
+
+def plot_loss_accuracy(history, out_dir, title=""):
+    """Separate loss and validation counting accuracy curves; never invent missing history."""
+    epochs = [row['epoch'] for row in history]
+    keys = sorted({key for row in history for key in row
+                   if 'loss' in key and key.startswith(('train', 'val'))})
+    if keys:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        for key in keys:
+            ax.plot(epochs, [row.get(key, np.nan) for row in history], label=key)
+        ax.set(xlabel='Epoch (0-based)', ylabel='Loss', title=f'{title} - loss')
+        ax.legend()
+        ax.grid(alpha=0.25)
+        _save(fig, Path(out_dir) / 'loss_curves.png')
+    accuracy = {'val_acc_exact': 'Exact count', 'val_acc_within_1': 'Error <= 1',
+                'val_acc_within_3': 'Error <= 3'}
+    if any(key in row for row in history for key in accuracy):
+        fig, ax = plt.subplots(figsize=(8, 4))
+        for key, label in accuracy.items():
+            ax.plot(epochs, [row.get(key, np.nan) * 100 for row in history], label=label)
+        ax.set(xlabel='Epoch (0-based)', ylabel='Counting accuracy (%)', ylim=(0, 100),
+               title=f'{title} - validation accuracy')
+        ax.legend()
+        ax.grid(alpha=0.25)
+        _save(fig, Path(out_dir) / 'accuracy_curves.png')
 
 
 def plot_pred_vs_gt(

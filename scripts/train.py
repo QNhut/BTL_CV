@@ -26,6 +26,7 @@ def main() -> None:
     ap.add_argument("--out", default=str(ROOT / "runs"), help="thư mục gốc chứa kết quả")
     ap.add_argument("--epochs", type=int, default=None, help="ghi đè số epoch trong config")
     ap.add_argument("--batch-size", type=int, default=None)
+    ap.add_argument('--num-workers', type=int, default=None)
     ap.add_argument("--device", default=None)
     ap.add_argument("--resume", action="store_true", help="tiếp tục từ weights/last.pt")
     args = ap.parse_args()
@@ -49,7 +50,17 @@ def main() -> None:
         if args.batch_size:
             over.setdefault("train", {})["batch_size"] = args.batch_size
     cfg = deep_merge(cfg, over)
+    if args.num_workers is not None:
+        if args.num_workers < 0:
+            raise ValueError('num-workers must be non-negative')
+        section, key = ('train_args', 'workers') if cfg['type'] == 'yolo' else ('train', 'num_workers')
+        cfg.setdefault(section, {})[key] = args.num_workers
+    from src.utils.resources import guard_disk, MODEL_DISK_GB, GB
+    guard_disk(MODEL_DISK_GB.get(cfg['type'], 2) * GB)
     save_yaml(cfg, out_dir / "config.yaml")  # lưu lại cấu hình đã dùng để tái lập kết quả
+    if cfg.get('mode') == 'pretrained':
+        log.info('Pretrained inference model %s: skipping training. Run evaluate.py next.', cfg['name'])
+        return
 
     training_cfg = (cfg.get("train_args") if cfg["type"] == "yolo" else cfg.get("train")) or {}
     seed_everything(int(training_cfg.get("seed", 42)))
@@ -62,7 +73,8 @@ def main() -> None:
             by_split = {s: load_split_records(processed, s) for s in ("train", "val", "test")}
             data_yaml = export_yolo_dataset(by_split, processed / "yolo", ds_cfg.get("classes"))
         try:
-            best = model.fit(data_yaml, out_dir, resume=args.resume)
+            best = model.fit(data_yaml, out_dir, resume=args.resume,
+                             val_records=load_split_records(processed, "val"))
         finally:
             organize_training_outputs(out_dir)
         log.info("Xong. Trọng số tốt nhất: %s", best)

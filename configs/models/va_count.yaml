@@ -1,0 +1,17 @@
+name: va_count_dino_top3_apple
+type: va_count
+family: density
+mode: pretrained
+protocol: va_count_adapted_dino_top3_no_clip_filter
+model:
+  hub_id: HopooLinZ/VA-Count
+  filename: checkpoint_FSC.pth
+  revision: main
+  source_dir: external/va_count
+  architecture: mae_vit_base_patch16
+  exemplar_detector: IDEA-Research/grounding-dino-base
+  prompt: apple.
+  device: null
+inference:
+  count_threshold: null
+  tile: {enabled: false}

@@ -211,6 +211,8 @@ class Trainer:
     def _write_history(self) -> None:
         history_dir = self.out_dir / "training"
         write_json(self.history, history_dir / "history.json")
+        from ..visualization.curves import plot_loss_accuracy
+        plot_loss_accuracy(self.history, history_dir, self.model.cfg.get('name', ''))
         keys: list[str] = []
         for r in self.history:
             keys += [k for k in r if k not in keys]

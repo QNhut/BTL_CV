@@ -6,7 +6,7 @@ from typing import Sequence
 import numpy as np
 
 from ..data.annotations import ImageRecord
-from ..evaluation.counting_metrics import mae, rmse
+from ..evaluation.counting_metrics import mae, rmse, accuracy_within
 from ..evaluation.detection_metrics import evaluate_detection
 from ..evaluation.error_analysis import tune_count_threshold
 from ..evaluation.evaluator import run_inference
@@ -29,8 +29,11 @@ def validate(
         thr, best_mae = tune_count_threshold(results, gt)
         pred = np.array([r.count_at(thr) for r in results])
         metrics.update(val_mae=best_mae, val_rmse=rmse(pred, gt), val_threshold=thr)
-        if with_map:
+        if with_map and model.supports_box_metrics:
             metrics["val_map50"] = evaluate_detection(
                 [r.boxes for r in results], [r.scores for r in results], [r.boxes for r in records], iou_thrs=(0.5,)
             )["map50"]
+    metrics.update(val_acc_exact=accuracy_within(pred, gt, 0),
+                   val_acc_within_1=accuracy_within(pred, gt, 1),
+                   val_acc_within_3=accuracy_within(pred, gt, 3))
     return metrics

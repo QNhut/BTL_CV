@@ -99,3 +99,27 @@ def test_return_results_and_speed(records):
     m = OracleDetector(records[:4])
     rep, results = evaluate_model(m, records[:4], with_speed=True, speed_images=2, return_results=True)
     assert len(results) == 4 and rep["speed"]["fps"] > 0
+
+
+def test_metric_inference_does_not_retain_full_resolution_masks(records):
+    from src.evaluation.evaluator import run_inference
+
+    class MaskOracle(OracleDetector):
+        def _predict_raw(self, images):
+            results = super()._predict_raw(images)
+            for result, image in zip(results, images):
+                result.masks = np.zeros((1, *image.shape[:2]), dtype=bool)
+            return results
+
+    model = MaskOracle(records[:2])
+    compact = run_inference(model, records[:2], batch_size=1)
+    assert all(result.masks is None for result in compact)
+    detailed = run_inference(model, records[:2], batch_size=1, keep_visuals=True)
+    assert all(result.masks is not None for result in detailed)
+
+
+def test_metric_inference_keeps_density_count_without_storing_all_maps(records):
+    from src.evaluation.evaluator import run_inference
+    results = run_inference(OracleDensity(records[:2]), records[:2], batch_size=1)
+    assert all(result.density is None for result in results)
+    assert [result.count for result in results] == [record.count for record in records[:2]]

@@ -39,3 +39,6 @@ def test_comparison_includes_all_metrics_and_density_missing_values(tmp_path):
     markdown = (output / 'comparison_test.md').read_text(encoding='utf-8')
     assert '—' in markdown and 'IoU 0.5' in markdown
     assert (output / 'comparison_test.png').exists()
+    assert (output / 'deployment_test.csv').exists()
+    assert (output / 'deployment_test.md').exists()
+    assert (output / 'deployment_test.png').exists()

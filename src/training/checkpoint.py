@@ -6,14 +6,20 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
+from ..utils.resources import guard_disk, state_bytes
 
 
 def save_checkpoint(path: str | Path, state: dict[str, Any]) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    torch.save(state, tmp)
-    os.replace(tmp, path)
+    guard_disk(int(state_bytes(state) * 1.1) + 8 * 1024**2)
+    try:
+        torch.save(state, tmp)
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()  # Only this writer's temporary checkpoint, never best/last.
 
 
 def load_checkpoint(path: str | Path, map_location: Any = "cpu") -> dict[str, Any]:

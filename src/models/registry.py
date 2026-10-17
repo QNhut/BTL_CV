@@ -14,6 +14,11 @@ _REGISTRY: dict[str, tuple[str, str]] = {
     "faster_rcnn": ("faster_rcnn", "FasterRCNNCounter"),
     "mask_rcnn": ("mask_rcnn", "MaskRCNNCounter"),
     "csrnet": ("csrnet", "CSRNetCounter"),
+    "rtdetrv2": ("hf_detectors", "HFDetectorCounter"),
+    "rf_detr": ("hf_detectors", "HFDetectorCounter"),
+    "grounding_dino": ("hf_detectors", "HFDetectorCounter"),
+    "countgd": ("countgd", "CountGDCounter"),
+    "va_count": ("va_count", "VACountCounter"),
 }
 
 
@@ -30,6 +35,8 @@ def get_model_class(model_type: str) -> type[BaseCounter]:
 
 def build_model(cfg: dict, device: Optional[str] = None) -> BaseCounter:
     """Dựng model từ dict config (nội dung một file configs/models/*.yaml)."""
+    from ..utils.resources import guard_disk, MODEL_DISK_GB, GB
+    guard_disk(MODEL_DISK_GB.get(cfg['type'], 2) * GB)
     return get_model_class(cfg["type"])(cfg, device=device)
 
 

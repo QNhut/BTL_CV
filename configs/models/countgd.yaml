@@ -1,0 +1,19 @@
+name: countgd_text_apple
+type: countgd
+family: detection
+mode: pretrained
+protocol: pretrained_text_counting_no_sam
+# Set to the Python executable of your CountGD environment (Transformers 4.x).
+python_executable: null
+model:
+  hub_id: nikigoli/CountGD
+  filename: model.safetensors
+  revision: main
+  source_dir: external/countgd
+  prompt: apple
+  text_encoder: bert-base-uncased
+  device: null
+inference:
+  min_score: 0.05
+  count_threshold: 0.23
+  tile: {enabled: false}

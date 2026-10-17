@@ -7,7 +7,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from _common import ROOT, default_weights, run_dir, setup_logging
+from _common import ROOT, selected_weights, run_dir, setup_logging
 
 from src.data.annotations import IMAGE_EXTS, list_images
 from src.inference import CountingPredictor
@@ -35,8 +35,9 @@ def main() -> None:
     setup_logging()
 
     pred = CountingPredictor.from_config(args.model, device=args.device)
-    weights = args.weights or default_weights(args.runs, pred.model.cfg)
-    pred.model.load(str(weights))
+    weights = selected_weights(args.runs, pred.model.cfg, args.weights)
+    if weights is not None:
+        pred.model.load(str(weights))
     if args.tile:
         pred.set_tiling(True, args.tile_size, args.tile_overlap)
     if args.count_threshold is not None:

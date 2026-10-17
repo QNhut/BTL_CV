@@ -7,8 +7,10 @@ Với model phát hiện, ngưỡng đếm được chọn trên tập val (trá
 """
 import argparse
 import logging
+import time
+from pathlib import Path
 
-from _common import ROOT, default_weights, run_dir, setup_logging
+from _common import ROOT, selected_weights, run_dir, setup_logging
 
 from src.data import load_split_records
 from src.evaluation import evaluate_model, summarize, worst_cases, write_csv
@@ -32,16 +34,23 @@ def main() -> None:
     ap.add_argument("--tile-size", type=int, default=None)
     ap.add_argument("--tile-overlap", type=float, default=None)
     ap.add_argument("--speed", action="store_true", help="đo FPS / latency")
+    ap.add_argument('--speed-runs', type=int, default=50)
+    ap.add_argument('--speed-warmup', type=int, default=5)
     ap.add_argument("--batch-size", type=int, default=4)
     ap.add_argument("--device", default=None)
     ap.add_argument("--tag", default="", help="hậu tố cho tên file kết quả, ví dụ _tile")
     args = ap.parse_args()
     setup_logging()
 
+    load_started = time.perf_counter()
     pred = CountingPredictor.from_config(args.model, weights=None, device=args.device)
     cfg = pred.model.cfg
-    weights = args.weights or default_weights(args.out, cfg)
-    pred.model.load(str(weights))
+    weights = selected_weights(args.out, cfg, args.weights)
+    if weights is not None:
+        pred.model.load(str(weights))
+    from src.evaluation.speed import _sync
+    _sync()
+    model_load_s = time.perf_counter() - load_started
     if args.tile:
         pred.set_tiling(True, args.tile_size, args.tile_overlap)
     if args.count_threshold is not None:
@@ -54,15 +63,20 @@ def main() -> None:
         tune = load_split_records(processed, args.tune_on)
 
     report = evaluate_model(
-        pred.model, records, batch_size=args.batch_size, tune_on=tune, with_speed=args.speed, progress=True
+        pred.model, records, batch_size=args.batch_size, tune_on=tune, with_speed=args.speed,
+        speed_runs=args.speed_runs, speed_warmup=args.speed_warmup, progress=True
     )
     log.info(summarize(report))
+    report['runtime']['model_load_s'] = model_load_s
+    assets = [Path(weights)] if weights else [Path(p) for p in getattr(pred.model, 'weight_files', [])]
+    report['storage'] = {'checkpoint_mb': sum(p.stat().st_size for p in assets) / 1024**2 if assets else None}
 
     out = run_dir(args.out, cfg) / "evaluation"
     suffix = f"{args.split}{args.tag}"
     rows = report.pop("per_image")
     report["worst_cases"] = worst_cases(rows, 10)
-    report["weights"] = str(weights)
+    report["weights"] = str(weights) if weights else None
+    report['source'] = cfg.get('model', {}).get('hub_id')
     report["tiling"] = bool(args.tile)
     write_json(report, out / f"metrics_{suffix}.json")
     write_csv(rows, out / f"per_image_{suffix}.csv")

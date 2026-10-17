@@ -1,0 +1,9 @@
+# Install only when selecting the new models. RF-DETR requires a recent Transformers.
+-r requirements.txt
+transformers>=5.20.1,<6
+huggingface-hub>=1.0
+safetensors>=0.5
+timm>=1.0
+torch>=2.6
+Pillow>=10
+# CountGD / VA-Count additionally need their upstream source; see Docs/Extra_Models.md.

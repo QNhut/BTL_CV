@@ -59,6 +59,7 @@ class BaseCounter(ABC):
     name: str = "base"
     family: str = "detection"        # detection | segmentation | density
     supports_tiling: bool = True
+    supports_box_metrics: bool = True
 
     def __init__(self, cfg: dict):
         self.cfg = cfg

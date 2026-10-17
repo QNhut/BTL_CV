@@ -1,0 +1,16 @@
+name: grounding_dino_base_apple
+type: grounding_dino
+family: detection
+mode: pretrained
+protocol: zero_shot_text
+model:
+  hub_id: IDEA-Research/grounding-dino-base
+  revision: main
+  prompt: apple.
+  text_threshold: 0.25
+  device: null
+inference:
+  min_score: 0.05
+  count_threshold: 0.35
+  nms_iou: 0.5
+  tile: {enabled: false, size: 640, overlap: 0.2}

@@ -138,6 +138,11 @@ Test cần torch / ultralytics tự bỏ qua nếu chưa cài.
 - Cố định `seed`, giữ nguyên split và lưu `runs/<model>/config.yaml` để tái lập kết quả.
 # BTL_CV
 
+Các model mở rộng (RT-DETRv2, RF-DETR, Grounding DINO, CountGD, VA-Count),
+chế độ fine-tune/pretrained và cách chuẩn bị dependency được mô tả tại
+[Docs/Extra_Models.md](Docs/Extra_Models.md). CountGD cần môi trường riêng;
+VA-Count hiện là biến thể có ghi rõ chính sách chọn exemplar, không phải tái lập đầy đủ bài báo.
+
 
 ## Pipeline Kaggle lấy source từ GitHub
 
