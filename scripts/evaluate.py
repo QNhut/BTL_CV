@@ -58,7 +58,7 @@ def main() -> None:
     )
     log.info(summarize(report))
 
-    out = run_dir(args.out, cfg)
+    out = run_dir(args.out, cfg) / "evaluation"
     suffix = f"{args.split}{args.tag}"
     rows = report.pop("per_image")
     report["worst_cases"] = worst_cases(rows, 10)

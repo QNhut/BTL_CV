@@ -7,7 +7,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from _common import ROOT, default_weights, setup_logging
+from _common import ROOT, default_weights, run_dir, setup_logging
 
 from src.data.annotations import IMAGE_EXTS, list_images
 from src.inference import CountingPredictor
@@ -22,7 +22,7 @@ def main() -> None:
     ap.add_argument("--model", required=True)
     ap.add_argument("--weights", default=None)
     ap.add_argument("--source", required=True, help="ảnh hoặc thư mục ảnh")
-    ap.add_argument("--out", default=str(ROOT / "outputs" / "predictions"))
+    ap.add_argument("--out", default=None, help="default: <runs>/<model>/predictions")
     ap.add_argument("--runs", default=str(ROOT / "runs"), help="nơi tìm best.pt mặc định")
     ap.add_argument("--count-threshold", type=float, default=None)
     ap.add_argument("--tile", action="store_true")
@@ -46,7 +46,7 @@ def main() -> None:
     paths = [src] if src.is_file() else list_images(src)
     if src.is_file() and src.suffix.lower() not in IMAGE_EXTS:
         raise SystemExit(f"Không phải file ảnh: {src}")
-    out = Path(args.out)
+    out = Path(args.out) if args.out else run_dir(args.runs, pred.model.cfg) / "predictions"
     rows = []
     for p in paths:
         img = load_image(p)

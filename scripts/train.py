@@ -13,6 +13,7 @@ from src.data import export_yolo_dataset, load_split_records
 from src.models import build_model, load_model_config
 from src.utils import deep_merge, load_yaml, save_yaml, seed_everything
 from src.visualization import plot_training_curves
+from src.utils.run_layout import organize_training_outputs
 
 log = logging.getLogger("fruitcount")
 
@@ -60,7 +61,10 @@ def main() -> None:
             log.info("Chưa có dataset YOLO, đang xuất từ records...")
             by_split = {s: load_split_records(processed, s) for s in ("train", "val", "test")}
             data_yaml = export_yolo_dataset(by_split, processed / "yolo", ds_cfg.get("classes"))
-        best = model.fit(data_yaml, out_dir, resume=args.resume)
+        try:
+            best = model.fit(data_yaml, out_dir, resume=args.resume)
+        finally:
+            organize_training_outputs(out_dir)
         log.info("Xong. Trọng số tốt nhất: %s", best)
         return
 
@@ -71,7 +75,7 @@ def main() -> None:
     log.info("Train %d ảnh | Val %d ảnh | model %s (%.1fM tham số)",
              len(train_recs), len(val_recs), cfg["name"], model.num_parameters() / 1e6)
     summary = Trainer(model, train_recs, val_recs, aug_cfg, out_dir).fit(resume=args.resume)
-    plot_training_curves(summary["history"], out_dir / "training_curves.png", title=cfg["name"])
+    plot_training_curves(summary["history"], out_dir / "training" / "training_curves.png", title=cfg["name"])
     log.info("Xong. Val MAE tốt nhất %.3f tại epoch %d -> %s",
              summary["best_val_mae"], summary["best_epoch"], out_dir / "weights" / "best.pt")
 

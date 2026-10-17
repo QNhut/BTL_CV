@@ -33,7 +33,7 @@ def test_trainer_runs_saves_and_resumes(records, tmp_path):
     assert summary["best_val_mae"] == min(h["val_mae"] for h in summary["history"])
     ck = CheckpointManager(tmp_path)
     assert ck.last_path.exists() and ck.best_path.exists()
-    assert (tmp_path / "history.json").exists() and (tmp_path / "history.csv").exists()
+    assert (tmp_path / "training/history.json").exists() and (tmp_path / "training/history.csv").exists()
 
     # resume: mở rộng lên 3 epoch, chỉ chạy thêm epoch cuối
     t2 = Trainer(build_model(_cfg(3)), train, val, aug, tmp_path)
