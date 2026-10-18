@@ -2,8 +2,13 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
+
+# CLI workers save figures to files. Do not inherit Jupyter's inline backend:
+# isolated model environments may not contain matplotlib_inline/IPython.
+os.environ['MPLBACKEND'] = 'Agg'
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
