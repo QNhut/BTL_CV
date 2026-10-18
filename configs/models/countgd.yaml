@@ -1,8 +1,8 @@
-name: countgd_text_apple
+name: countgd_text_apple_partial
 type: countgd
 family: detection
-mode: pretrained
-protocol: pretrained_text_counting_no_sam
+mode: finetune
+protocol: finetuned_text_counting_no_sam
 # Set to the Python executable of your CountGD environment (Transformers 4.x).
 python_executable: null
 model:
@@ -17,3 +17,19 @@ inference:
   min_score: 0.05
   count_threshold: 0.23
   tile: {enabled: false}
+train:
+  scope: decoder_heads
+  freeze_backbone: true
+  epochs: 40
+  batch_size: 1
+  num_workers: 0
+  optimizer: adamw
+  lr: 0.00001
+  weight_decay: 0.0001
+  scheduler: cosine
+  warmup_epochs: 1
+  grad_clip: 1.0
+  amp: false
+  val_every: 1
+  patience: 10
+  seed: 42

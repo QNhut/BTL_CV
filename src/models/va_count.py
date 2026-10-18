@@ -53,7 +53,37 @@ class VACountCounter(TorchCounter):
         return super().num_parameters() + self.proposer.num_parameters()
 
     def training_step(self, batch):
-        raise NotImplementedError('VA-Count adapter is pretrained inference only; upstream training is separate.')
+        if self.cfg.get('mode') != 'finetune':
+            raise ValueError('Set mode: finetune to train VA-Count.')
+        from ..data.density import boxes_to_density
+        import torch.nn.functional as F
+        images, targets = batch
+        losses = []
+        for image, target in zip(images, targets):
+            h, w = image.shape[-2:]
+            boxes = target['boxes'].detach().cpu().numpy().copy()
+            boxes[:, [0, 2]] *= 384 / w
+            boxes[:, [1, 3]] *= 384 / h
+            resized = TF.resize(image, [384, 384], antialias=True).to(self.device)
+            patches = []
+            # Train exemplars come only from augmented training annotations.
+            for x0, y0, x1, y1 in boxes[:3]:
+                left, top = max(0, int(x0)), max(0, int(y0))
+                right, bottom = min(384, int(x1) + 1), min(384, int(y1) + 1)
+                if left < right and top < bottom:
+                    patches.append(TF.resize(resized[:, top:bottom, left:right], [64, 64], antialias=True))
+            if not patches:
+                # Empty crops remain valid negatives rather than dropping the batch.
+                patches = [torch.zeros((3, 64, 64), device=self.device)]
+            while len(patches) < 3:
+                patches.append(patches[-1])
+            raw = self.network(resized[None], torch.stack(patches)[None], 3)[0]
+            density = boxes_to_density(boxes, (384, 384), downsample=1)
+            expected = torch.as_tensor(density, device=self.device, dtype=raw.dtype).reshape_as(raw) * 60
+            mse = F.mse_loss(raw, expected)
+            count = (raw.sum() / 60 - len(boxes)).abs()
+            losses.append(mse + float(self.train_cfg.get('count_loss_weight', 0.01)) * count)
+        return {'loss': torch.stack(losses).mean()}
 
     def _predict_raw(self, images):
         results = []

@@ -37,12 +37,27 @@ def test_upstream_density_network_forward_without_production_downloads(tmp_path,
         network = torch.nn.Linear(1, 1)
         def __init__(self, *args, **kwargs):
             pass
+        def num_parameters(self):
+            return sum(p.numel() for p in self.network.parameters())
         def predict_image(self, image):
             return CountResult(boxes=np.array([[10, 10, 30, 30]], np.float32), scores=np.array([.9], np.float32))
 
     monkeypatch.setattr('src.models.va_count.HFDetectorCounter', Proposer)
-    counter = VACountCounter({'model': {'source_dir': str(source), 'weights': str(checkpoint),
+    counter = VACountCounter({'type': 'va_count', 'mode': 'finetune', 'train': {'scope': 'decoder_heads'},
+                              'model': {'source_dir': str(source), 'weights': str(checkpoint),
                                         'architecture': 'test_tiny', 'device': 'cpu'}})
     result = counter.predict_image(np.zeros((100, 100, 3), np.uint8))
     assert result.density.shape == (384, 384)
     assert np.isfinite(result.count) and result.count >= 0
+    counter.train_mode()
+    losses = counter.training_step(([torch.rand(3, 100, 100)],
+                                    [{'boxes': torch.tensor([[10., 10., 30., 30.]])}]))
+    assert torch.isfinite(losses['loss'])
+    losses['loss'].backward()
+    assert 0 < sum(p.numel() for p in counter.trainable_parameters()) < counter.num_parameters()
+    assert all(p.grad is None for p in counter.network.parameters() if not p.requires_grad)
+    assert any(p.grad is not None and p.grad.abs().sum() > 0 for p in counter.network.parameters())
+    saved = tmp_path / 'finetuned.pt'
+    counter.save(saved)
+    counter.load(str(saved))
+    assert not counter.network.training

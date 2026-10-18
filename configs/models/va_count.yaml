@@ -1,8 +1,8 @@
-name: va_count_dino_top3_apple
+name: va_count_dino_top3_apple_partial
 type: va_count
 family: density
-mode: pretrained
-protocol: va_count_adapted_dino_top3_no_clip_filter
+mode: finetune
+protocol: finetuned_gt_exemplars_dino_inference
 model:
   hub_id: HopooLinZ/VA-Count
   filename: checkpoint_FSC.pth
@@ -15,3 +15,19 @@ model:
 inference:
   count_threshold: null
   tile: {enabled: false}
+train:
+  scope: decoder_heads
+  epochs: 40
+  batch_size: 1
+  num_workers: 0
+  optimizer: adamw
+  lr: 0.00001
+  weight_decay: 0.0001
+  scheduler: cosine
+  warmup_epochs: 1
+  grad_clip: 1.0
+  amp: false
+  count_loss_weight: 0.01
+  val_every: 1
+  patience: 10
+  seed: 42

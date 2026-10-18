@@ -36,7 +36,10 @@ def main():
               'inference_passed': True, 'backward_passed': False}
     if args.backward and cfg.get('mode') == 'finetune':
         model.train_mode()
-        dataset = build_dataset(model.dataset_kind, records[:1])
+        train_records = load_split_records(ROOT / load_yaml(args.dataset)['processed_dir'], 'train')
+        if not train_records:
+            raise ValueError('Backward smoke check requires a non-empty training split.')
+        dataset = build_dataset(model.dataset_kind, train_records[:1])
         batch = get_collate_fn(model.dataset_kind)([dataset[0]])
         settings = cfg.get('train', {})
         optimizer = torch.optim.AdamW(model.trainable_parameters(), lr=settings.get('lr', 1e-5),

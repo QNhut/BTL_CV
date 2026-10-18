@@ -11,11 +11,11 @@ vào kết quả của MinneApple. Cần chạy evaluate trên cùng tập ảnh
 
 | Khóa trong MODELS | Config | Mặc định | Fine-tune trong trainer dự án |
 |---|---|---|---|
-| `rtdetrv2` | `configs/models/rtdetrv2.yaml` | Checkpoint R101 đã fine-tune rau quả; chỉ đếm lớp Apple | Có, đổi `mode` thành `finetune` |
+| `rtdetrv2` | `configs/models/rtdetrv2.yaml` | Fine-tune R101 thành một lớp fruit trên split train của dự án | Có |
 | `rf_detr` | `configs/models/rf_detr.yaml` | Fine-tune RF-DETR Large thành một lớp fruit | Có |
-| `grounding_dino` | `configs/models/grounding_dino.yaml` | Pretrained, prompt `apple.` | Chưa tích hợp |
-| `countgd` | `configs/models/countgd.yaml` | Text-only pretrained, không SAM normalization/crop ensemble | Chưa tích hợp |
-| `va_count` | `configs/models/va_count.yaml` | Checkpoint mật độ VA-Count + exemplar tự chọn bằng DINO | Chưa tích hợp |
+| `grounding_dino` | `configs/models/grounding_dino.yaml` | Fine-tune detector với prompt `apple.` | Có, loss gốc Transformers |
+| `countgd` | `configs/models/countgd.yaml` | Fine-tune text-only, không SAM/crop ensemble | Có, criterion upstream; môi trường riêng |
+| `va_count` | `configs/models/va_count.yaml` | Fine-tune density; exemplar nhãn train, DINO chọn lúc test | Có, biến thể MSE + count loss |
 
 Nguồn checkpoint/API:
 
@@ -31,7 +31,7 @@ Trong `kaggle_pipeline_git.ipynb`, ví dụ:
 
 ```python
 MODELS = ['yolov8', 'csrnet', 'rtdetrv2', 'rf_detr', 'grounding_dino']
-EPOCHS = 2
+EPOCHS = None  # Dùng số epoch trong YAML; đặt 1 hoặc 2 để chạy thử.
 ```
 
 Notebook tự cài `requirements-extra-models.txt` nếu chọn detector Transformers mới
@@ -45,8 +45,9 @@ cầu `runs/<name>/weights/best.pt`. `mode: finetune` dùng trainer, best/last,
 early stopping, resume và biểu đồ loss/Accuracy như các model PyTorch hiện có.
 
 Không có đường loss/Accuracy theo epoch cho các model chỉ suy luận pretrained.
-Không đổi pretrained thành finetune cho CountGD/VA-Count chỉ bằng cách sửa YAML;
-hai model đó cần quy trình huấn luyện riêng của tác giả.
+Ba config Grounding DINO/CountGD/VA-Count mặc định đã bật `mode: finetune`.
+Đổi về `pretrained` nếu chỉ muốn đánh giá checkpoint nguồn, đồng thời đổi tên run
+và protocol để không nhầm với kết quả fine-tune.
 
 Thí nghiệm YOLOv8 tiling chỉ chạy khi `yolov8` có trong MODELS.
 
@@ -66,10 +67,10 @@ RT-DETRv2/RF-DETR khi fine-tune dùng COCO annotations chuyển từ box `xyxy`,
 được chuyển về tọa độ ảnh gốc trước evaluator. Fine-tune thay classifier bằng
 một lớp, nên phần classifier không giữ nguyên trọng số đa lớp pretrained.
 
-Để fine-tune RT-DETRv2, sửa config thành ví dụ:
+RT-DETRv2 mặc định đã bật fine-tune với cấu hình:
 
 ```yaml
-name: rtdetrv2_r101_finetuned
+name: rtdetrv2_r101_partial
 type: rtdetrv2
 mode: finetune
 protocol: finetuned
@@ -114,6 +115,12 @@ python_executable: /duong/dan/countgd-env/bin/python
 ```
 
 Notebook gọi train/evaluate/predict của model này bằng Python được chỉ định.
+Notebook hiện tự gọi `scripts/setup_countgd_env.py` khi chưa có Python CountGD:
+tạo Python 3.10 bằng uv, cài requirements-countgd.txt và build ops. Cần Internet,
+GPU CUDA và compiler/CUDA toolkit tương thích. Môi trường nằm trong
+`/kaggle/working/.venvs/countgd` và chiếm thêm dung lượng; có thể tạo môi trường
+trước rồi đặt `python_executable` để dùng lại. Không ép cài Transformers 4.x vào
+môi trường RF-DETR. Nếu bước setup/build lỗi, notebook dừng trước train.
 Khi chạy CLI thủ công, gọi script bằng Python môi trường CountGD tương ứng.
 Adapter kiểm tra phiên bản Transformers và ops trước khi dựng model; thiếu
 dependency sẽ dừng với hướng dẫn thay vì trả kết quả giả.
@@ -123,6 +130,12 @@ visual prompts hoặc crop ensemble như các thí nghiệm khác của tác gi�
 không xuất box AP trong evaluator vì box dự đoán dùng cho định vị/đếm không được
 xem là box extent trái cây tương đương detector có giám sát. Vẫn có MAE, RMSE,
 Accuracy, tune ngưỡng validation và benchmark.
+
+Fine-tune dùng bbox của split train, chuẩn hóa cxcywh theo kích thước ảnh gốc,
+resize ảnh theo cùng quy tắc suy luận, prompt một lớp và không dùng visual exemplar.
+Criterion từ builder upstream thực hiện matching, focal classification, L1/GIoU
+và auxiliary losses theo weight_dict. Trainer dự án đảm nhiệm optimizer,
+best/last, resume và validation; không phải recipe huấn luyện đầy đủ của bài báo.
 
 ## 5. VA-Count: giới hạn của bản tích hợp
 
@@ -148,10 +161,31 @@ tái lập toàn bộ pipeline bài báo. Nó:
 
 Chưa dùng binary CLIP classifier được huấn luyện riêng để chọn exemplar của
 tác giả, chưa có negative exemplar pipeline hoặc normalization bổ sung.
-Protocol trong báo cáo là `va_count_adapted_dino_top3_no_clip_filter`, tên run là
-`va_count_dino_top3_apple`. Nếu cần tái lập nguyên bản, cần bổ sung checkpoint
+Chế độ fine-tune hiện dùng protocol `finetuned_gt_exemplars_dino_inference`, tên run
+`va_count_dino_top3_apple_partial`. Nếu cần tái lập nguyên bản, cần bổ sung checkpoint
 binary classifier và quy trình chọn exemplar chính thức; không gộp kết quả này
 với kết quả VA-Count trong bài báo mà không ghi chú.
+
+Fine-tune đọc dataset detection để giữ bbox sau augmentation, resize về 384×384,
+lấy tối đa ba crop từ bbox train làm exemplar và tạo density Gaussian tổng bằng
+số quả. Target nhân 60 theo scale checkpoint upstream. Loss là density MSE cộng
+`count_loss_weight * abs(sum(output)/60 - GT)`; mặc định trọng số count là 0.01.
+DINO proposer không tham gia optimizer. Đây là biến thể supervised adaptation,
+không có negative exemplar/CLIP loss của tác giả. Validation/test vẫn tự chọn
+exemplar qua DINO, tuyệt đối không dùng bbox GT làm exemplar.
+
+Notebook mặc định chọn ba model mới; nên chạy từng model trong phiên riêng nếu
+không đủ VRAM/đĩa. Không tăng ngân sách đĩa chỉ để bỏ qua resource guard. Grounding
+DINO/CountGD/VA-Count đặt batch 1 và AMP false ban đầu để giảm lỗi số học; cần
+smoke test checkpoint thật trên GPU trước khi tăng batch hoặc bật AMP.
+Cả năm model mới mặc định dùng `train.scope: decoder_heads`: chỉ cập nhật
+decoder/head, giữ nguyên encoder/backbone/text encoder và positional embedding cố định.
+VA-Count cập nhật decoder, các nhánh xử lý exemplar và density head; DINO proposer
+không nằm trong optimizer. Log train ghi số tham số trainable/tổng và phần trăm.
+Đặt `train.scope: full` để cập nhật toàn bộ tham số vốn có thể train; chế độ này
+bỏ qua cờ `freeze_backbone` cũ nhưng vẫn giữ positional embedding cố định của tác giả.
+Chế độ partial giảm gradient và optimizer state, không giảm kích thước trọng số
+checkpoint toàn mạng. Đổi `name` khi đổi scope, không resume optimizer giữa hai scope.
 
 Benchmark VA-Count bao gồm cả bước DINO chọn exemplar và mạng mật độ. Số tham số
 và dung lượng tensor bao gồm hai mạng, không chỉ riêng bộ hồi quy mật độ.
@@ -189,13 +223,15 @@ chung một process demo. Adapter phát hiện xung đột và yêu cầu chạy
   density scale và bỏ qua train cho model pretrained bằng test không tải weights.
 - Có smoke test Transformers thật với RT-DETRv2/RF-DETR nhỏ khởi tạo ngẫu nhiên
   và lưu cục bộ: forward, backward và predict; không phải test checkpoint R101/Large.
-- Grounding DINO cũng có test suy luận thật với model/tokenizer nhỏ lưu cục bộ.
+- Grounding DINO có test suy luận và fine-tune forward/backward với model/tokenizer nhỏ lưu cục bộ.
 - Đã đối chiếu config và processor thật trên Hub: RT-DETRv2 fruit nhận tensor
   640×640 và RF-DETR Large nhận 704×704 với processor mặc định được kiểm tra.
 - RF-DETR nhỏ đã chạy hết train → evaluate → compare qua CLI, tạo checkpoint,
   biểu đồ loss/Accuracy và bảng deployment bằng dữ liệu tổng hợp.
 - Có kiểm thử mạng mật độ từ source VA-Count với kiến trúc thu nhỏ và weights
-  ngẫu nhiên; không thay thế việc kiểm chứng checkpoint FSC trên dữ liệu thật.
+  ngẫu nhiên: predict, loss/backward, lưu/nạp checkpoint. Không thay thế việc kiểm chứng checkpoint FSC trên dữ liệu thật.
+- CountGD có contract test chuyển bbox, trọng số criterion và gradient bằng mạng giả;
+  criterion/CUDA backend production vẫn cần smoke check thật trên Kaggle.
 - Chưa kiểm chứng toàn bộ checkpoint production/GPU hoặc build CUDA CountGD trên
   Kaggle. Dependency, tải weights và VRAM thực tế cần xác nhận trong môi trường đó.
 

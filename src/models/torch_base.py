@@ -31,6 +31,25 @@ class TorchCounter(BaseCounter):
         super().__init__(cfg)
         self.device = resolve_device(device or (cfg.get("model", {}) or {}).get("device"))
         self.network: nn.Module = self._build_network().to(self.device)
+        self._apply_train_scope()
+
+    def _apply_train_scope(self):
+        """Select decoder/head parameters without unfreezing fixed positional embeddings."""
+        if self.cfg.get('mode') != 'finetune':
+            return
+        scope = self.train_cfg.get('scope', 'default')
+        if scope in ('default', 'full'):
+            return
+        if scope != 'decoder_heads':
+            raise ValueError(f'Unknown train.scope: {scope}')
+        kind = self.cfg.get('type')
+        from fnmatch import fnmatchcase
+        patterns = (('decoder_*', 'decode_head*') if kind == 'va_count' else
+                    ('*decoder*', '*class_embed*', '*bbox_embed*', '*score_head*', '*bbox_predictor*'))
+        for name, parameter in self.network.named_parameters():
+            parameter.requires_grad_(parameter.requires_grad and any(fnmatchcase(name, p) for p in patterns))
+        if not self.trainable_parameters():
+            raise ValueError(f'No trainable decoder/head parameters found for {kind}')
 
     # ----- cần cài ở lớp con -----
     @abstractmethod
@@ -57,6 +76,13 @@ class TorchCounter(BaseCounter):
 
     def train_mode(self) -> None:
         self.network.train()
+        if self.train_cfg.get('scope') == 'decoder_heads':
+            # Frozen feature extractors also keep BatchNorm buffers and dropout
+            # behavior fixed; decoder/head modules remain in training mode.
+            for module in self.network.modules():
+                parameters = list(module.parameters())
+                if parameters and not any(p.requires_grad for p in parameters):
+                    module.eval()
 
     def eval_mode(self) -> None:
         self.network.eval()

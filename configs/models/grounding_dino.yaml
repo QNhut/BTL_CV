@@ -1,8 +1,8 @@
-name: grounding_dino_base_apple
+name: grounding_dino_base_apple_partial
 type: grounding_dino
 family: detection
-mode: pretrained
-protocol: zero_shot_text
+mode: finetune
+protocol: finetuned_text
 model:
   hub_id: IDEA-Research/grounding-dino-base
   revision: main
@@ -14,3 +14,19 @@ inference:
   count_threshold: 0.35
   nms_iou: 0.5
   tile: {enabled: false, size: 640, overlap: 0.2}
+train:
+  scope: decoder_heads  # full trains all originally trainable parameters.
+  freeze_backbone: true
+  epochs: 40
+  batch_size: 1
+  num_workers: 0
+  optimizer: adamw
+  lr: 0.00001
+  weight_decay: 0.0001
+  scheduler: cosine
+  warmup_epochs: 1
+  grad_clip: 1.0
+  amp: false
+  val_every: 1
+  patience: 10
+  seed: 42

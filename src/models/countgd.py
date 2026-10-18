@@ -40,14 +40,45 @@ class CountGDCounter(TorchCounter):
         args.device = str(self.device)
         args.text_encoder_type = settings.get('text_encoder', 'bert-base-uncased')
         args.use_checkpoint = args.use_transformer_ckpt = False
-        network, _, _ = MODULE_BUILD_FUNCS.get(args.modelname)(args)
+        network, self.criterion, _ = MODULE_BUILD_FUNCS.get(args.modelname)(args)
         weights = checkpoint_path(settings)
         load_into(network, weights)
+        if (self.cfg.get('mode') == 'finetune' and self.train_cfg.get('scope') != 'full'
+                and self.train_cfg.get('freeze_backbone', False)):
+            for name, parameter in network.named_parameters():
+                if name.startswith(('backbone.', 'bert.')):
+                    parameter.requires_grad_(False)
         self.weight_files = [str(weights)]
         return network
 
     def training_step(self, batch):
-        raise NotImplementedError('CountGD uses text-only pretrained inference; upstream fine-tuning is not integrated.')
+        if self.cfg.get('mode') != 'finetune':
+            raise ValueError('Set mode: finetune to train CountGD.')
+        from torchvision.ops import box_convert
+        images, targets = batch
+        tensors, labels = [], []
+        prompt = self.cfg['model'].get('prompt', 'apple').strip(' .')
+        captions = [prompt + ' .'] * len(images)
+        for image, target in zip(images, targets):
+            h, w = image.shape[-2:]
+            scale = min(800 / min(h, w), 1333 / max(h, w))
+            resized = TF.resize(image, [round(h * scale), round(w * scale)], antialias=True)
+            tensors.append(TF.normalize(resized, [0.485, 0.456, 0.406],
+                                        [0.229, 0.224, 0.225]).to(self.device))
+            boxes = target['boxes'].to(self.device)
+            boxes = box_convert(boxes, 'xyxy', 'cxcywh') / boxes.new_tensor([w, h, w, h])
+            labels.append({'boxes': boxes, 'labels': torch.zeros(len(boxes), dtype=torch.long,
+                                                                 device=self.device)})
+        nested = self.nested_tensor(tensors)
+        outputs = self.network(nested, nested,
+                               [torch.empty((0, 4), device=self.device) for _ in images],
+                               [torch.zeros(1, dtype=torch.long, device=self.device) for _ in images],
+                               captions=captions)
+        self.criterion.to(self.device)
+        losses = self.criterion(outputs, labels, [[prompt] for _ in images], captions)
+        total = sum(value * self.criterion.weight_dict[key] for key, value in losses.items()
+                    if key in self.criterion.weight_dict)
+        return {'loss': total, **{key: value.detach() for key, value in losses.items()}}
 
     def _predict_raw(self, images):
         prompt = self.cfg['model'].get('prompt', '').strip()

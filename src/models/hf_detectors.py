@@ -26,12 +26,16 @@ class HFDetectorCounter(TorchCounter):
         processor_class = AutoProcessor if self.grounded else AutoImageProcessor
         self.processor = processor_class.from_pretrained(source, **options)
         loader = AutoModelForZeroShotObjectDetection if self.grounded else AutoModelForObjectDetection
-        if self.cfg.get('mode') == 'finetune':
-            if self.grounded:
-                raise ValueError('Grounding DINO is currently supported for prompted inference, not fine-tuning.')
+        if self.cfg.get('mode') == 'finetune' and not self.grounded:
             options.update(num_labels=1, id2label={0: 'fruit'}, label2id={'fruit': 0},
                            ignore_mismatched_sizes=True)
         network = loader.from_pretrained(source, **options)
+        train = self.cfg.get('train', {})
+        if (self.cfg.get('mode') == 'finetune' and train.get('scope') != 'full'
+                and train.get('freeze_backbone', False)):
+            for name, parameter in network.named_parameters():
+                if 'backbone' in name:
+                    parameter.requires_grad_(False)
         self.weight_files = []
         from huggingface_hub import try_to_load_from_cache
         from pathlib import Path
@@ -57,9 +61,15 @@ class HFDetectorCounter(TorchCounter):
                 prompt += '.'
             kwargs['text'] = [prompt] * len(images)
             kwargs['padding'] = True
-        if annotations is not None:
+        if annotations is not None and not self.grounded:
             kwargs['annotations'] = annotations
-        inputs = self.processor(**kwargs).to(self.device)
+        inputs = self.processor(**kwargs)
+        if annotations is not None and self.grounded:
+            # GroundingDinoProcessor drops annotations; its image processor converts
+            # COCO boxes to normalized cxcywh labels expected by the native loss.
+            inputs['labels'] = self.processor.image_processor(
+                images=images, annotations=annotations, return_tensors='pt')['labels']
+        inputs = inputs.to(self.device)
         # BatchFeature.to() does not consistently recurse into label mappings
         # across Transformers versions. Move annotation tensors explicitly.
         if 'labels' in inputs:
@@ -69,7 +79,7 @@ class HFDetectorCounter(TorchCounter):
 
     def training_step(self, batch):
         if self.cfg.get('mode') != 'finetune':
-            raise ValueError('Set mode: finetune to train RT-DETRv2 or RF-DETR.')
+            raise ValueError('Set mode: finetune to train a Transformers detector.')
         images, targets = batch
         arrays, annotations = [], []
         for i, (image, target) in enumerate(zip(images, targets)):
@@ -81,6 +91,8 @@ class HFDetectorCounter(TorchCounter):
                                 'area': width * height, 'iscrowd': 0})
             annotations.append({'image_id': i, 'annotations': objects})
         result = self.network(**self._inputs(arrays, annotations))
+        if result.loss is None:
+            raise RuntimeError('Detector returned no training loss; check annotation processing and Transformers version.')
         return {'loss': result.loss, **{f'loss_{key}': value.detach()
                                       for key, value in (result.loss_dict or {}).items()}}
 

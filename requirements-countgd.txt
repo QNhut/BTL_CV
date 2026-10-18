@@ -1,5 +1,13 @@
 # Separate Python 3.9/3.10 environment for the author's legacy CountGD code.
--r requirements.txt
+# CLI-only dependencies; do not install Gradio/Ultralytics in this isolated environment.
+numpy>=1.24,<2
+opencv-python-headless>=4.8,<4.12
+PyYAML>=6
+matplotlib>=3.7
+scipy>=1.10
+pandas>=2
+tqdm>=4.65
+Pillow>=10
 torch>=2.3,<2.6
 torchvision>=0.18,<0.21
 transformers>=4.40,<4.45

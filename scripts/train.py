@@ -65,6 +65,12 @@ def main() -> None:
     training_cfg = (cfg.get("train_args") if cfg["type"] == "yolo" else cfg.get("train")) or {}
     seed_everything(int(training_cfg.get("seed", 42)))
     model = build_model(cfg, device=args.device)
+    if hasattr(model, 'trainable_parameters'):
+        trainable = sum(p.numel() for p in model.trainable_parameters())
+        total = model.num_parameters()
+        log.info('Train scope=%s | trainable %.2fM / %.2fM parameters (%.1f%%)',
+                 (cfg.get('train') or {}).get('scope', 'default'), trainable / 1e6,
+                 total / 1e6, 100 * trainable / max(1, total))
 
     if cfg["type"] == "yolo":
         data_yaml = processed / "yolo" / "data.yaml"

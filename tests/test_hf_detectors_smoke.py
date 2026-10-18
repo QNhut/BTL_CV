@@ -38,23 +38,27 @@ def test_transformers_detector_local_training_and_inference(kind, tmp_path):
         processor = RfDetrImageProcessor(size={'height': 64, 'width': 64})
     network.save_pretrained(tmp_path)
     processor.save_pretrained(tmp_path)
-    model = build_model({'type': kind, 'mode': 'finetune', 'model': {'hub_id': str(tmp_path), 'device': 'cpu'},
+    model = build_model({'type': kind, 'mode': 'finetune', 'train': {'scope': 'decoder_heads'},
+                         'model': {'hub_id': str(tmp_path), 'device': 'cpu'},
                          'inference': {'min_score': 0.05}})
     image = torch.rand(3, 64, 64)
     target = {'boxes': torch.tensor([[10., 10., 30., 35.]])}
     losses = model.training_step(([image, image], [target, target]))
     assert torch.isfinite(losses['loss'])
     losses['loss'].backward()
+    assert 0 < sum(p.numel() for p in model.trainable_parameters()) < model.num_parameters()
+    assert all(p.grad is None for p in model.network.parameters() if not p.requires_grad)
     result = model.predict_image(np.zeros((64, 64, 3), np.uint8))
     assert result.boxes.shape[1] == 4
     assert len(result.boxes) == len(result.scores)
 
 
-def test_grounding_dino_local_prompted_inference(tmp_path):
+@pytest.mark.parametrize('mode', ['pretrained', 'finetune'])
+def test_grounding_dino_local_prompted_inference(tmp_path, mode):
     from transformers import (GroundingDinoConfig, GroundingDinoForObjectDetection,
                               GroundingDinoProcessor, GroundingDinoImageProcessor,
                               BertConfig, BertTokenizer, SwinConfig)
-    text = BertConfig(vocab_size=8, hidden_size=32, num_hidden_layers=1,
+    text = BertConfig(vocab_size=1014, hidden_size=32, num_hidden_layers=1,
                       num_attention_heads=4, intermediate_size=64)
     vision = SwinConfig(image_size=64, embed_dim=8, depths=[1, 1, 1, 1],
                         num_heads=[1, 2, 4, 8], window_size=2, out_indices=[2, 3, 4])
@@ -63,15 +67,29 @@ def test_grounding_dino_local_prompted_inference(tmp_path):
                               decoder_ffn_dim=64, encoder_attention_heads=4, decoder_attention_heads=4,
                               num_queries=5, max_text_len=16, disable_custom_kernels=True)
     network = GroundingDinoForObjectDetection(cfg)
-    tokenizer = BertTokenizer(vocab={'[PAD]': 0, '[UNK]': 1, '[CLS]': 2, '[SEP]': 3,
-                                     '[MASK]': 4, 'apple': 5, '.': 6, 'fruit': 7})
+    # Grounding DINO's native loss identifies phrases using BERT delimiter IDs.
+    tokenizer = BertTokenizer(vocab={'[PAD]': 0, '[UNK]': 100, '[CLS]': 101, '[SEP]': 102,
+                                     '[MASK]': 103, 'apple': 104, '.': 1012, 'fruit': 105})
     processor = GroundingDinoProcessor(image_processor=GroundingDinoImageProcessor(
         size={'shortest_edge': 64, 'longest_edge': 64}), tokenizer=tokenizer)
     network.save_pretrained(tmp_path)
     processor.save_pretrained(tmp_path)
-    model = build_model({'type': 'grounding_dino', 'mode': 'pretrained',
+    model = build_model({'type': 'grounding_dino', 'mode': mode,
                          'model': {'hub_id': str(tmp_path), 'prompt': 'apple.', 'device': 'cpu'},
+                         'train': {'freeze_backbone': True, 'scope': 'decoder_heads'},
                          'inference': {'min_score': 0.05}})
     result = model.predict_image(np.zeros((64, 64, 3), np.uint8))
     assert result.boxes.shape[1] == 4
     assert np.isfinite(result.scores).all()
+    if mode == 'finetune':
+        model.train_mode()
+        losses = model.training_step(([torch.rand(3, 64, 64)],
+                                      [{'boxes': torch.tensor([[10., 10., 30., 35.]])}]))
+        assert torch.isfinite(losses['loss'])
+        losses['loss'].backward()
+        assert any(p.grad is not None and p.grad.abs().sum() > 0
+                   for p in model.network.parameters())
+        assert all(p.grad is None for name, p in model.network.named_parameters() if 'backbone' in name)
+        model.save(tmp_path / 'finetuned.pt')
+        model.load(str(tmp_path / 'finetuned.pt'))
+        assert not model.network.training
