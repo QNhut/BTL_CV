@@ -32,9 +32,13 @@ def test_comparison_includes_all_metrics_and_density_missing_values(tmp_path):
         rows = list(csv.DictReader(f))
     assert len(rows) == 3 and rows[0]['model'] == 'csrnet'
     assert rows[0]['precision_at_best_f1'] == ''
-    assert rows[1]['acc_exact'] == '0.5'
-    assert rows[1]['map75'] == '0.8'
-    assert rows[1]['latency_ms_p95'] == '55.0'
+    assert rows[1]['acc_exact'] == '0.500'
+    assert rows[1]['map75'] == '0.800'
+    assert rows[1]['latency_ms_p95'] == '55.000'
+    assert rows[1]['params_million'] == '10.000'
+    assert not {'n_images', 'benchmark_device', 'benchmark_hardware', 'benchmark_batch_size',
+                'benchmark_runs', 'benchmark_warmup', 'torch_version', 'parameter_dtype',
+                'cpu_threads', 'dataset_batch_size'}.intersection(rows[1])
     assert rows[2]['model'] == 'yolo (tile)'
     markdown = (output / 'comparison_test.md').read_text(encoding='utf-8')
     assert '—' in markdown and 'IoU 0.5' in markdown

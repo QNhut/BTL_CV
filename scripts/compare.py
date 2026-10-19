@@ -22,16 +22,21 @@ COUNT_COLUMNS = [
 ]
 DETECTION_COLUMNS = [
     "map50", "map75", "map", "precision_at_best_f1", "recall_at_best_f1",
-    "best_f1", "best_f1_score_thr",
+    "best_f1",
 ]
-SPEED_COLUMNS = ["fps", "latency_ms_mean", "latency_ms_median", "latency_ms_p95",
-                 "latency_ms_std", "latency_ms_min", "latency_ms_max", "params_million",
-                 "model_tensor_mb", "gpu_peak_allocated_mb", "gpu_inference_extra_mb",
-                 "benchmark_device", "benchmark_hardware", "benchmark_batch_size",
-                 "benchmark_runs", "benchmark_warmup", "cpu_threads", "torch_version", "parameter_dtype"]
-RUNTIME_COLUMNS = ["model_load_s", "dataset_inference_s", "dataset_images_per_s", "dataset_batch_size"]
-COLUMNS = ["model", "family", "protocol", "n_images", *COUNT_COLUMNS, *DETECTION_COLUMNS,
-           *SPEED_COLUMNS, "checkpoint_mb", *RUNTIME_COLUMNS]
+SPEED_COLUMNS = ["fps", "latency_ms_mean", "latency_ms_p95", "params_million",
+                 "model_tensor_mb", "gpu_peak_allocated_mb"]
+COLUMNS = ["model", *COUNT_COLUMNS, *DETECTION_COLUMNS, *SPEED_COLUMNS, "checkpoint_mb"]
+
+
+def write_comparison_csv(rows, columns, path):
+    # Format exports only; retain full precision in source JSON and plots.
+    def value(v):
+        if v is None or isinstance(v, float) and not math.isfinite(v):
+            return ""
+        return f"{v:.3f}" if isinstance(v, float) else v
+
+    write_csv([{key: value(row[key]) for key in columns} for row in rows], path)
 
 
 def main() -> None:
@@ -58,7 +63,6 @@ def main() -> None:
             **{k: d.get(k, "") for k in DETECTION_COLUMNS},
             **{k: s.get(k, "") for k in SPEED_COLUMNS},
             'checkpoint_mb': r.get('storage', {}).get('checkpoint_mb', ''),
-            **{k: r.get('runtime', {}).get(k, '') for k in RUNTIME_COLUMNS},
         }
         rows.append(row)
         metrics[name] = {k: v for k, v in row.items() if isinstance(v, float)}
@@ -67,14 +71,11 @@ def main() -> None:
         raise SystemExit(f"Chưa có metrics_{args.split}*.json trong {runs}; hãy chạy scripts/evaluate.py trước.")
 
     rows.sort(key=lambda r: r["mae"] if isinstance(r["mae"], (int, float)) and math.isfinite(r["mae"]) else math.inf)
-    write_csv([{k: r[k] for k in COLUMNS} for r in rows], out / f"comparison_{args.split}.csv")
-    deployment_columns = ['model', 'protocol', 'mae', 'acc_within_1', 'fps', 'latency_ms_mean',
+    write_comparison_csv(rows, COLUMNS, out / f"comparison_{args.split}.csv")
+    deployment_columns = ['model', 'mae', 'acc_within_1', 'fps', 'latency_ms_mean',
                           'latency_ms_p95', 'checkpoint_mb', 'model_tensor_mb',
-                          'gpu_peak_allocated_mb', 'gpu_inference_extra_mb', 'params_million',
-                          *RUNTIME_COLUMNS, 'benchmark_device', 'benchmark_hardware',
-                          'benchmark_runs', 'benchmark_warmup', 'parameter_dtype']
-    write_csv([{key: row[key] for key in deployment_columns} for row in rows],
-              out / f'deployment_{args.split}.csv')
+                          'gpu_peak_allocated_mb', 'params_million']
+    write_comparison_csv(rows, deployment_columns, out / f'deployment_{args.split}.csv')
     plot_model_comparison(metrics, ("mae", "rmse", "mape_pct"), out / f"comparison_{args.split}.png")
     plot_error_by_bin(bins, out / f"error_by_count_{args.split}.png")
     if any('fps' in values for values in metrics.values()):

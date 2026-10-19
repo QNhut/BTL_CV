@@ -79,4 +79,5 @@ def write_csv(rows: list[dict], path: str | Path) -> None:
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         w.writeheader()
-        w.writerows(rows)
+        w.writerows({key: f"{value:.3f}" if isinstance(value, (float, np.floating)) else value
+                     for key, value in row.items()} for row in rows)

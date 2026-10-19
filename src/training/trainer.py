@@ -184,7 +184,11 @@ class Trainer:
                     self.bad_evals += 1
             row["epoch_time_s"] = round(time.time() - t0, 1)
             self.history.append(row)
-            log.info(" | ".join(f"{k}={v:.4g}" if isinstance(v, float) else f"{k}={v}" for k, v in row.items()))
+            # Keep console output to one short line per epoch; history retains every loss.
+            console_keys = ("train_loss", "val_mae", "val_rmse", "val_acc_within_3", "lr", "epoch_time_s")
+            log.info("Epoch %d/%d | %s", epoch + 1, epochs, " | ".join(
+                f"{key}={row[key]:.4g}" for key in console_keys if key in row
+            ))
 
             self.ckpt.save_last(
                 {
