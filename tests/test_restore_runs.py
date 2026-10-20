@@ -39,3 +39,28 @@ def test_restore_rejects_mismatched_optimizer_scope(tmp_path):
 def test_best_only_is_not_a_resume_checkpoint(tmp_path):
     with pytest.raises(FileNotFoundError, match='last.pt'):
         restore_run(tmp_path / 'input', tmp_path / 'working', {'name': 'model'})
+
+
+def test_report_restore_accepts_best_only_and_preserves_metrics(tmp_path):
+    source, target = tmp_path / 'input/model', tmp_path / 'working/model'
+    (source / 'weights').mkdir(parents=True)
+    (source / 'weights/best.pt').write_bytes(b'best')
+    (source / 'evaluation').mkdir()
+    (source / 'evaluation/metrics_test.json').write_text('{"mae": 1}')
+    restore_run(source, target, {'name': 'model'}, report_only=True)
+    assert (target / 'weights/best.pt').read_bytes() == b'best'
+    assert (target / 'evaluation/metrics_test.json').is_file()
+    assert not (target / 'weights/last.pt').exists()
+    (target / 'weights/best.pt').write_bytes(b'local')
+    (source / 'evaluation/metrics_test.json').write_text('{"mae": 99}')
+    restore_run(source, target, {'name': 'model'}, report_only=True)
+    assert (target / 'weights/best.pt').read_bytes() == b'local'
+    assert (target / 'evaluation/metrics_test.json').read_text() == '{"mae": 1}'
+
+
+def test_report_restore_accepts_pretrained_metrics_without_weights(tmp_path):
+    source, target = tmp_path / 'input/model', tmp_path / 'working/model'
+    source.mkdir(parents=True)
+    (source / 'metrics_test.json').write_text('{}')
+    restore_run(source, target, {'name': 'model'}, report_only=True)
+    assert (target / 'metrics_test.json').is_file()

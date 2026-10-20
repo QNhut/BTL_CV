@@ -33,4 +33,9 @@ def selected_weights(out_root, model_cfg, explicit=None):
         return Path(explicit)
     if model_cfg.get('mode') == 'pretrained':
         return None  # The adapter loads its configured source checkpoint.
-    return default_weights(out_root, model_cfg)
+    best = default_weights(out_root, model_cfg)
+    last = best.with_name('last.pt')
+    if not best.is_file() and last.is_file():
+        logging.getLogger(__name__).warning('best.pt missing; using %s for inference', last)
+        return last
+    return best
