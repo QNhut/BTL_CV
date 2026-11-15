@@ -116,7 +116,7 @@ python_executable: /duong/dan/countgd-env/bin/python
 
 Notebook gọi train/evaluate/predict của model này bằng Python được chỉ định.
 Notebook hiện tự gọi `scripts/setup_countgd_env.py` khi chưa có Python CountGD:
-tạo Python 3.10 bằng uv, cài requirements-countgd.txt và build ops. Cần Internet,
+tạo Python 3.10 bằng micromamba, cài PyTorch 2.5.1/cu124 và CUDA toolkit 12.4 + GCC 12 riêng, rồi cài requirements-countgd.txt và build ops. Cần Internet,
 GPU CUDA và compiler/CUDA toolkit tương thích. Môi trường nằm trong
 `/kaggle/working/.venvs/countgd` và chiếm thêm dung lượng; có thể tạo môi trường
 trước rồi đặt `python_executable` để dùng lại. Không ép cài Transformers 4.x vào
@@ -237,3 +237,24 @@ chung một process demo. Adapter phát hiện xung đột và yêu cầu chạy
 
 Các test tùy chọn cần dependency mới; source nghiên cứu tải về nằm trong
 `external/` và được gitignore. Không commit checkpoint hoặc source upstream vào repo.
+
+### CountGD CUDA build diagnostics
+
+The setup script migrates the downloaded legacy THC atomic header and Tensor C++
+APIs before compiling with the pinned CUDA 12.4 toolchain. Compilation uses one
+worker and streams stdout/stderr to both the notebook and
+`/kaggle/working/countgd_build.log`. Config is updated only after the extension
+imports successfully. A real Kaggle GPU build and model smoke test are still required.
+
+For an older notebook with an inline `setup_countgd()` function, replace that
+function's body with the following so GitHub source fixes are used:
+
+```python
+def setup_countgd():
+    run_python('scripts/setup_countgd_env.py --env /kaggle/working/.venvs/countgd')
+```
+
+The clone cell does not update an existing checkout. In an existing Kaggle session,
+run `git -C /kaggle/working/FruitCountGit pull --ff-only origin TLuan` before setup,
+provided there are no conflicting local source edits. A new session clones the latest
+branch. Updating GitHub does not replace Python functions embedded in an older notebook.
